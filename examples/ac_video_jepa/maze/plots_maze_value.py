@@ -1,6 +1,6 @@
 """Bar chart of the maze planning-cost comparison: learned TD-MPC VALUE vs the
 geometric distance costs (probe_pos, repr_dist), grouped by planning regime.
-Reads results/maze_value/results.json.
+Reads <results_dir>/results.json (the directory passed as argv[1]).
 
 Usage: python -m examples.ac_video_jepa.maze.plots_maze_value <results_dir>
 """

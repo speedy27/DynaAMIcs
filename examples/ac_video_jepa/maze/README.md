@@ -1,7 +1,7 @@
 # Maze — AC-Video-JEPA world model + A*-free hierarchical navigation
 
 This is the **entry point** for the maze use-case (the other use-case of
-`ac_video_jepa` is **Two Rooms**, see `README.md`). The maze reuses the exact same
+`ac_video_jepa` is **Two Rooms**, see `../README.md`). The maze reuses the exact same
 stack — an Impala encoder, an `RNNPredictor`, `JEPA.unroll`, and the MPPI planner —
 on a procedurally generated grid maze, and adds a learned hierarchy so the agent
 can navigate **without A\* at evaluation**.
