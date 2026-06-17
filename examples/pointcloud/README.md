@@ -24,7 +24,7 @@ eb_jepa/datasets/pointcloud/   dataset.py (provided loader) + data_config.yaml
 examples/pointcloud/
   main.py     SSL pretraining — TODO: build_encoder() + build_ssl()
   eval.py     downstream probe — TODO: probe() + metric
-  configs/    train.yaml, eval.yaml
+  cfgs/    train.yaml, eval.yaml
 ```
 
 ## What you implement (the `# TODO`s)

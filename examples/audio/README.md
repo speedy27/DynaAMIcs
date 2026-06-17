@@ -21,7 +21,7 @@ eb_jepa/datasets/audio/   dataset.py (provided loader + augmentation) + data_con
 examples/audio/
   main.py     SSL pretraining — TODO: build_encoder() + build_ssl()
   eval.py     downstream probe — TODO: probe() + 35-way accuracy
-  configs/    train.yaml, eval.yaml
+  cfgs/    train.yaml, eval.yaml
 ```
 
 ## What you implement (the `# TODO`s)

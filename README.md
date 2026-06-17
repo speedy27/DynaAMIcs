@@ -145,7 +145,7 @@ checkpoints/
 
 | Command | Description |
 |---------|-------------|
-| `--example {name}` | Choose: `image_jepa`, `video_jepa`, `ac_video_jepa` |
+| `--example {name}` | Choose: `image_jepa`, `video_jepa`, `ac_video_jepa`, `maze`, `fintime`, `ltsf`, `eeg`, `audio`, `pointcloud`, `gray_scott` |
 | `--fname {path}` | Run the sweep specified in the config at `{path}` |
 | `--single` | Launch single job (dev mode) |
 | `--sweep {name}` | Custom sweep name |

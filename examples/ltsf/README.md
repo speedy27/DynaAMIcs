@@ -22,7 +22,7 @@ eb_jepa/datasets/ltsf/   dataset.py (provided loader) + data_config.yaml
 examples/ltsf/
   main.py     SSL pretraining — TODO: build_encoder() + build_ssl()
   eval.py     forecast probe  — TODO: probe() + (optional) dlinear_baseline()
-  configs/    train.yaml, eval.yaml
+  cfgs/    train.yaml, eval.yaml
 ```
 
 ## What you implement (the `# TODO`s)

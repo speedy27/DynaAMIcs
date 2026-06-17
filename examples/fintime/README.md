@@ -17,7 +17,7 @@ examples/fintime/
   main.py     SSL pretraining — TODO: build_encoder() + build_ssl()
   eval.py     downstream probe — TODO: probe() + metric
   prepare.py  one-time HF-parquet -> memmap (provided)
-  configs/    train.yaml, eval.yaml
+  cfgs/    train.yaml, eval.yaml
 ```
 
 ## What you implement (the `# TODO`s)

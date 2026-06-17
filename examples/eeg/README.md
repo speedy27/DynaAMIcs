@@ -17,7 +17,7 @@ eb_jepa/datasets/eeg/   dataset.py (provided EDF loader) + data_config.yaml
 examples/eeg/
   main.py     SSL pretraining — TODO: build_encoder() + build_ssl()
   eval.py     patient-disjoint probe — TODO: probe() + metric
-  configs/    train.yaml, eval.yaml
+  cfgs/    train.yaml, eval.yaml
 ```
 
 ## What you implement (the `# TODO`s)

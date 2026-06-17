@@ -21,7 +21,7 @@ eb_jepa/datasets/gray_scott/   dataset.py (provided HDF5 loader) + data_config.y
 examples/gray_scott/
   main.py     temporal-JEPA pretraining — TODO: build_encoder() + build_jepa()
   eval.py     field-space VRMSE rollout — TODO: build_decoder() + vrmse metric
-  configs/    train.yaml, eval.yaml
+  cfgs/    train.yaml, eval.yaml
 ```
 
 ## The model — temporal / predictive JEPA (not two-view)
