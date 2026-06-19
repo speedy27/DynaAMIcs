@@ -2,304 +2,157 @@
   "rows": [
     {
       "K": 6,
-      "n_species": 24,
-      "n_candidate": 6,
-      "action_max": 0.5,
-      "horizon": 6,
-      "mpc_steps": 20,
       "tol": 0.9957860399240593,
       "attr_scale": 6.638573599493729,
-      "success_rate": 0.0,
-      "n_success": 0,
-      "n_pairs": 6,
       "mean_start_dist": 6.638573599493729,
-      "mean_final_dist": 4.0880029683576105,
-      "per_pair": [
-        {
-          "src": 0,
-          "tgt": 1,
-          "start": 6.638573599493731,
-          "final": 4.100768066051291,
-          "reached": false
-        },
-        {
-          "src": 0,
-          "tgt": 2,
-          "start": 6.63857359949373,
-          "final": 4.061329188250629,
-          "reached": false
-        },
-        {
-          "src": 1,
-          "tgt": 0,
-          "start": 6.638573599493731,
-          "final": 4.062381387961342,
-          "reached": false
-        },
-        {
-          "src": 1,
-          "tgt": 2,
-          "start": 6.6385735994937285,
-          "final": 4.112139190995113,
-          "reached": false
-        },
-        {
-          "src": 2,
-          "tgt": 0,
-          "start": 6.63857359949373,
-          "final": 4.1283249612579995,
-          "reached": false
-        },
-        {
-          "src": 2,
-          "tgt": 1,
-          "start": 6.6385735994937285,
-          "final": 4.063075015629291,
-          "reached": false
-        }
-      ]
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist_mean": 4.088885607284249,
+      "mean_final_dist_se": 0.0017049506237763327,
+      "per_seed_success_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_seed_mean_final_dist": [
+        4.0880029683576105,
+        4.092179343491741,
+        4.086474510003397
+      ],
+      "n_pairs": 6
     },
     {
       "K": 9,
-      "n_species": 24,
-      "n_candidate": 9,
-      "action_max": 0.5,
-      "horizon": 6,
-      "mpc_steps": 20,
       "tol": 0.9957860399240593,
       "attr_scale": 6.638573599493729,
-      "success_rate": 0.0,
-      "n_success": 0,
-      "n_pairs": 6,
       "mean_start_dist": 6.638573599493729,
-      "mean_final_dist": 3.718271030763063,
-      "per_pair": [
-        {
-          "src": 0,
-          "tgt": 1,
-          "start": 6.638573599493731,
-          "final": 3.721785983385005,
-          "reached": false
-        },
-        {
-          "src": 0,
-          "tgt": 2,
-          "start": 6.63857359949373,
-          "final": 3.7101691028884534,
-          "reached": false
-        },
-        {
-          "src": 1,
-          "tgt": 0,
-          "start": 6.638573599493731,
-          "final": 3.7101274132601736,
-          "reached": false
-        },
-        {
-          "src": 1,
-          "tgt": 2,
-          "start": 6.6385735994937285,
-          "final": 3.724527176612997,
-          "reached": false
-        },
-        {
-          "src": 2,
-          "tgt": 0,
-          "start": 6.63857359949373,
-          "final": 3.734912562248741,
-          "reached": false
-        },
-        {
-          "src": 2,
-          "tgt": 1,
-          "start": 6.6385735994937285,
-          "final": 3.7081039461830105,
-          "reached": false
-        }
-      ]
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist_mean": 3.719398092764959,
+      "mean_final_dist_se": 0.0005739467077804046,
+      "per_seed_success_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_seed_mean_final_dist": [
+        3.718271030763063,
+        3.7201501520211564,
+        3.7197730955106576
+      ],
+      "n_pairs": 6
     },
     {
       "K": 12,
-      "n_species": 24,
-      "n_candidate": 12,
-      "action_max": 0.5,
-      "horizon": 6,
-      "mpc_steps": 20,
       "tol": 0.9957860399240593,
       "attr_scale": 6.638573599493729,
-      "success_rate": 0.0,
-      "n_success": 0,
-      "n_pairs": 6,
       "mean_start_dist": 6.638573599493729,
-      "mean_final_dist": 3.3212794637047334,
-      "per_pair": [
-        {
-          "src": 0,
-          "tgt": 1,
-          "start": 6.638573599493731,
-          "final": 3.321896967646999,
-          "reached": false
-        },
-        {
-          "src": 0,
-          "tgt": 2,
-          "start": 6.63857359949373,
-          "final": 3.317934206301859,
-          "reached": false
-        },
-        {
-          "src": 1,
-          "tgt": 0,
-          "start": 6.638573599493731,
-          "final": 3.3220189269752654,
-          "reached": false
-        },
-        {
-          "src": 1,
-          "tgt": 2,
-          "start": 6.6385735994937285,
-          "final": 3.32597518877813,
-          "reached": false
-        },
-        {
-          "src": 2,
-          "tgt": 0,
-          "start": 6.63857359949373,
-          "final": 3.3242259592914856,
-          "reached": false
-        },
-        {
-          "src": 2,
-          "tgt": 1,
-          "start": 6.6385735994937285,
-          "final": 3.315625533234658,
-          "reached": false
-        }
-      ]
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist_mean": 3.323395211396703,
+      "mean_final_dist_se": 0.0010656609778483617,
+      "per_seed_success_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_seed_mean_final_dist": [
+        3.3212794637047334,
+        3.324230355053736,
+        3.324675815431639
+      ],
+      "n_pairs": 6
+    },
+    {
+      "K": 15,
+      "tol": 0.9957860399240593,
+      "attr_scale": 6.638573599493729,
+      "mean_start_dist": 6.638573599493729,
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist_mean": 2.88669985918867,
+      "mean_final_dist_se": 0.0013966114676058794,
+      "per_seed_success_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_seed_mean_final_dist": [
+        2.889492724103164,
+        2.8853421559372845,
+        2.8852646975255616
+      ],
+      "n_pairs": 6
     },
     {
       "K": 18,
-      "n_species": 24,
-      "n_candidate": 18,
-      "action_max": 0.5,
-      "horizon": 6,
-      "mpc_steps": 20,
       "tol": 0.9957860399240593,
       "attr_scale": 6.638573599493729,
-      "success_rate": 0.0,
-      "n_success": 0,
-      "n_pairs": 6,
       "mean_start_dist": 6.638573599493729,
-      "mean_final_dist": 2.376500056635317,
-      "per_pair": [
-        {
-          "src": 0,
-          "tgt": 1,
-          "start": 6.638573599493731,
-          "final": 2.3630989692525737,
-          "reached": false
-        },
-        {
-          "src": 0,
-          "tgt": 2,
-          "start": 6.63857359949373,
-          "final": 2.3920452502464706,
-          "reached": false
-        },
-        {
-          "src": 1,
-          "tgt": 0,
-          "start": 6.638573599493731,
-          "final": 2.3962255635394016,
-          "reached": false
-        },
-        {
-          "src": 1,
-          "tgt": 2,
-          "start": 6.6385735994937285,
-          "final": 2.3730092957348203,
-          "reached": false
-        },
-        {
-          "src": 2,
-          "tgt": 0,
-          "start": 6.63857359949373,
-          "final": 2.3564308199613917,
-          "reached": false
-        },
-        {
-          "src": 2,
-          "tgt": 1,
-          "start": 6.6385735994937285,
-          "final": 2.3781904410772436,
-          "reached": false
-        }
-      ]
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist_mean": 2.3766146015941505,
+      "mean_final_dist_se": 0.0019369492801128588,
+      "per_seed_success_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_seed_mean_final_dist": [
+        2.376500056635317,
+        2.3800253017424597,
+        2.373318446404675
+      ],
+      "n_pairs": 6
+    },
+    {
+      "K": 21,
+      "tol": 0.9957860399240593,
+      "attr_scale": 6.638573599493729,
+      "mean_start_dist": 6.638573599493729,
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist_mean": 1.7310465916434667,
+      "mean_final_dist_se": 0.002194167946075787,
+      "per_seed_success_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_seed_mean_final_dist": [
+        1.7269788800288899,
+        1.7316544703849377,
+        1.7345064245165724
+      ],
+      "n_pairs": 6
     },
     {
       "K": 24,
-      "n_species": 24,
-      "n_candidate": 24,
-      "action_max": 0.5,
-      "horizon": 6,
-      "mpc_steps": 20,
       "tol": 0.9957860399240593,
       "attr_scale": 6.638573599493729,
-      "success_rate": 1.0,
-      "n_success": 6,
-      "n_pairs": 6,
       "mean_start_dist": 6.638573599493729,
-      "mean_final_dist": 0.776489254743525,
-      "per_pair": [
-        {
-          "src": 0,
-          "tgt": 1,
-          "start": 6.638573599493731,
-          "final": 0.7856058606875265,
-          "reached": true
-        },
-        {
-          "src": 0,
-          "tgt": 2,
-          "start": 6.63857359949373,
-          "final": 0.8977498344363586,
-          "reached": true
-        },
-        {
-          "src": 1,
-          "tgt": 0,
-          "start": 6.638573599493731,
-          "final": 0.7494301760806676,
-          "reached": true
-        },
-        {
-          "src": 1,
-          "tgt": 2,
-          "start": 6.6385735994937285,
-          "final": 0.7449043544863371,
-          "reached": true
-        },
-        {
-          "src": 2,
-          "tgt": 0,
-          "start": 6.63857359949373,
-          "final": 0.7180180214957423,
-          "reached": true
-        },
-        {
-          "src": 2,
-          "tgt": 1,
-          "start": 6.6385735994937285,
-          "final": 0.7632272812745174,
-          "reached": true
-        }
-      ]
+      "success_rate_mean": 1.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist_mean": 0.79013881929334,
+      "mean_final_dist_se": 0.016436055063305782,
+      "per_seed_success_rate": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_mean_final_dist": [
+        0.776489254743525,
+        0.8228614539663205,
+        0.771065749170174
+      ],
+      "n_pairs": 6
     }
   ],
   "best_K": 24,
   "best_success_rate": 1.0,
+  "controllability_onset_K": 24,
   "controllable": true,
-  "verdict": "CONTROLLABLE at K>=24 -> proceed to retrain the world model at that K",
+  "verdict": "CONTROLLABLE: onset at K=24, full success at K=24 -> retrain world model at K=24",
   "same_tol_across_K": true,
   "settings": {
     "n_species": 24,
@@ -311,6 +164,10 @@
     "n_elites": 16,
     "n_iters": 3,
     "tol_frac": 0.15,
-    "seed": 0
+    "seeds": [
+      0,
+      1,
+      2
+    ]
   }
 }

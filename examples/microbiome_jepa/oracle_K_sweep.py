@@ -139,8 +139,22 @@ def _run_one_K(K, n_species, n_guilds, action_max, horizon, mpc_steps, n_samples
     }
 
 
+def _mean_se(vals):
+    a = np.asarray(vals, dtype=float)
+    n = len(a)
+    return float(a.mean()), (float(a.std(ddof=1) / np.sqrt(n)) if n > 1 else 0.0)
+
+
+def _parse_seeds(seeds):
+    if isinstance(seeds, (list, tuple)):
+        return [int(s) for s in seeds]
+    if isinstance(seeds, int):
+        return [seeds]
+    return [int(s) for s in str(seeds).strip("() ").split(",") if str(s).strip() != ""]
+
+
 def run(
-    K_list=(6, 9, 12, 18, 24),
+    K_list=(6, 9, 12, 15, 18, 21, 24),
     n_species: int = 24,
     n_guilds: int = 3,
     action_max: float = 0.5,
@@ -152,7 +166,7 @@ def run(
     init_std: float = 0.25,
     temperature: float = 1.0,
     tol_frac: float = 0.15,
-    seed: int = 0,
+    seeds="0,1,2",
     out: str = "examples/microbiome_jepa/results",
     tag: str = "",
 ):
@@ -160,44 +174,109 @@ def run(
         K_list = [int(K_list)]
     else:
         K_list = [int(k) for k in K_list]
+    seed_list = _parse_seeds(seeds)
 
     print(f"[oracle-K] n_species={n_species} n_guilds={n_guilds} action_max={action_max} "
-          f"horizon={horizon} mpc_steps={mpc_steps} n_samples={n_samples} tol_frac={tol_frac}")
+          f"horizon={horizon} mpc_steps={mpc_steps} n_samples={n_samples} tol_frac={tol_frac} "
+          f"seeds={seed_list}")
     print(f"[oracle-K] sweeping K in {K_list}  (K=6 should reproduce the committed diagnosis ~4.0)")
 
-    rows = [_run_one_K(K, n_species, n_guilds, action_max, horizon, mpc_steps, n_samples,
-                       n_elites, n_iters, init_std, temperature, tol_frac, seed)
-            for K in K_list]
+    # rows[K] aggregates over seeds; each seed is one independent MPPI RNG.
+    rows = []
+    for K in K_list:
+        per_seed = [_run_one_K(K, n_species, n_guilds, action_max, horizon, mpc_steps, n_samples,
+                               n_elites, n_iters, init_std, temperature, tol_frac, seed)
+                    for seed in seed_list]
+        sr_m, sr_se = _mean_se([r["success_rate"] for r in per_seed])
+        fd_m, fd_se = _mean_se([r["mean_final_dist"] for r in per_seed])
+        rows.append({
+            "K": int(K), "tol": per_seed[0]["tol"], "attr_scale": per_seed[0]["attr_scale"],
+            "mean_start_dist": per_seed[0]["mean_start_dist"],
+            "success_rate_mean": sr_m, "success_rate_se": sr_se,
+            "mean_final_dist_mean": fd_m, "mean_final_dist_se": fd_se,
+            "per_seed_success_rate": [r["success_rate"] for r in per_seed],
+            "per_seed_mean_final_dist": [r["mean_final_dist"] for r in per_seed],
+            "n_pairs": per_seed[0]["n_pairs"],
+        })
 
-    # all K share the same attractors -> identical tol; assert and surface it
     tol0 = rows[0]["tol"]
     same_tol = all(abs(r["tol"] - tol0) < 1e-9 for r in rows)
-    print(f"\n  K   succ   n_succ/np   mean_final  (start {rows[0]['mean_start_dist']:.2f}, "
-          f"tol {tol0:.3f}{'' if same_tol else ' [WARN tol varies]'})")
-    print("  " + "-" * 52)
+    print(f"\n  K    succ_rate (mean±se)   mean_final (mean±se)   "
+          f"(start {rows[0]['mean_start_dist']:.2f}, tol {tol0:.3f}"
+          f"{'' if same_tol else ' [WARN tol varies]'})")
+    print("  " + "-" * 64)
     for r in rows:
-        print(f"  {r['K']:>2}  {r['success_rate']:.3f}   {r['n_success']:>2}/{r['n_pairs']:<2}     "
-              f"{r['mean_final_dist']:.3f}")
+        print(f"  {r['K']:>2}   {r['success_rate_mean']:.3f} ± {r['success_rate_se']:.3f}        "
+              f"{r['mean_final_dist_mean']:.3f} ± {r['mean_final_dist_se']:.3f}")
 
-    best = max(rows, key=lambda r: (r["success_rate"], -r["mean_final_dist"]))
-    controllable = best["success_rate"] > 0.0
-    verdict = ("CONTROLLABLE at K>=%d -> proceed to retrain the world model at that K"
-               % best["K"]) if controllable else \
+    best = max(rows, key=lambda r: (r["success_rate_mean"], -r["mean_final_dist_mean"]))
+    controllable = best["success_rate_mean"] > 0.0
+    # smallest K with any success (the controllability onset)
+    onset = next((r["K"] for r in rows if r["success_rate_mean"] > 0.0), None)
+    verdict = ("CONTROLLABLE: onset at K=%d, full success at K=%d -> retrain world model at K=%d"
+               % (onset, best["K"], best["K"])) if controllable else \
               ("UNCONTROLLABLE even at K=%d (=all species): the negative is fundamental to this "
-               "gLV/horizon/tol spec, not just the small panel" % max(r["K"] for r in rows))
+               "gLV/horizon/tol spec" % max(r["K"] for r in rows))
     print(f"\n[oracle-K] VERDICT: {verdict}")
 
-    res = {"rows": rows, "best_K": best["K"], "best_success_rate": best["success_rate"],
-           "controllable": controllable, "verdict": verdict, "same_tol_across_K": same_tol,
+    res = {"rows": rows, "best_K": best["K"], "best_success_rate": best["success_rate_mean"],
+           "controllability_onset_K": onset, "controllable": controllable, "verdict": verdict,
+           "same_tol_across_K": same_tol,
            "settings": {"n_species": n_species, "n_guilds": n_guilds, "action_max": action_max,
                         "horizon": horizon, "mpc_steps": mpc_steps, "n_samples": n_samples,
                         "n_elites": n_elites, "n_iters": n_iters, "tol_frac": tol_frac,
-                        "seed": seed}}
+                        "seeds": seed_list}}
     Path(out).mkdir(parents=True, exist_ok=True)
     fn = Path(out) / (f"oracle_K_sweep{('_' + tag) if tag else ''}.json")
     with open(fn, "w") as f:
         json.dump(res, f, indent=2)
     print(f"[oracle-K] saved -> {fn}")
+
+    # ---- figure: controllability curve (oracle success + final dist vs K) ----
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        Ks = [r["K"] for r in rows]
+        sr = [r["success_rate_mean"] for r in rows]
+        sr_se = [r["success_rate_se"] for r in rows]
+        fd = [r["mean_final_dist_mean"] for r in rows]
+        fd_se = [r["mean_final_dist_se"] for r in rows]
+        start = rows[0]["mean_start_dist"]
+
+        fig, ax1 = plt.subplots(figsize=(7, 4.3))
+        c1, c2 = "#2a7", "#c84"
+        ax1.errorbar(Ks, sr, yerr=sr_se, marker="o", lw=2, color=c1, capsize=3,
+                     label="oracle success rate")
+        ax1.set_xlabel("action panel size K  (dose-able species; n_species=%d)" % n_species)
+        ax1.set_ylabel("oracle success rate", color=c1)
+        ax1.set_ylim(-0.03, 1.05)
+        ax1.tick_params(axis="y", labelcolor=c1)
+        ax1.axhline(0.0, ls=":", c="gray", lw=0.8)
+
+        ax2 = ax1.twinx()
+        ax2.errorbar(Ks, fd, yerr=fd_se, marker="s", lw=2, color=c2, capsize=3, ls="--",
+                     label="mean final distance")
+        ax2.axhline(tol0, ls=":", c=c2, lw=1.0)
+        ax2.axhline(start, ls="-.", c="gray", lw=0.8)
+        ax2.set_ylabel("mean final dist to target  (tol=%.2f, start=%.2f)" % (tol0, start),
+                       color=c2)
+        ax2.tick_params(axis="y", labelcolor=c2)
+
+        ax1.set_title("gLV planning controllability vs actuation (PERFECT model / true dynamics)\n"
+                      "task is uncontrollable until ~all species are dose-able — root cause of the "
+                      "M3 negative")
+        ax1.set_xticks(Ks)
+        fig.tight_layout()
+        fig_path = Path(out) / (f"oracle_K_sweep{('_' + tag) if tag else ''}.png")
+        fig.savefig(fig_path, dpi=140)
+        plt.close(fig)
+        print(f"[oracle-K] figure -> {fig_path}")
+        res["figure"] = str(fig_path)
+    except Exception as e:
+        print(f"[oracle-K] figure skipped: {type(e).__name__}: {e}")
+
     return res
 
 
