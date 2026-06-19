@@ -39,6 +39,8 @@ from sklearn.preprocessing import StandardScaler, label_binarize
 
 from eb_jepa.architectures import SetTransformerEncoder
 from eb_jepa.datasets.microbiome.otu_data import (
+    OTUDatasetConfig,
+    OTUSampleDataset,
     build_otu_key_resolver,
     load_otu_rename_map,
     load_prokbert_embeddings,
@@ -161,6 +163,75 @@ def load_susagi_abundance_matrix(data_dir, sample_ids):
     return X, cols
 
 
+def fit_corpus_zscore(data_dir, n_samples, n_max, pseudocount=1e-6):
+    """Fit PerDimZScore on REAL CORPUS tokens (the pretraining distribution), not on the infant tokens.
+
+    The z-score is per-FEATURE (385 dims) over PRESENT OTUs, so it is independent of n_max / which
+    labeled set it is applied to: fitting it on the corpus makes the frozen-encoder eval consistent with
+    pretraining. Builds an OTUSampleDataset (mode='single') over a capped corpus stream and returns its
+    fitted .zscore. Returns (zscore, used_synthetic_fallback)."""
+    cfg = OTUDatasetConfig(data_dir=data_dir, mode="single", n_max=n_max,
+                           synth_n_samples=int(n_samples), pseudocount=pseudocount)
+    ds = OTUSampleDataset(cfg)  # __init__ fits .zscore on the corpus raw tokens
+    return ds.zscore, ds.is_synthetic
+
+
+@torch.no_grad()
+def _encode_with(encoder, tokens, masks, zscore, device, bs=128):
+    return encode_communities(encoder, tokens, masks, zscore, device, bs=bs)
+
+
+def finetune_upper_bound(cfg, checkpoint, tokens, masks, zscore, y, device, n_max,
+                         epochs=40, lr=3e-4, seed=42):
+    """SUPERVISED UPPER BOUND (clearly NOT the headline): fine-tune the encoder + a linear head on the
+    task with a StratifiedKFold, reporting acc + macro-AUC. This shows the model CAN be a strong
+    supervised classifier; it is a weaker, less JEPA-specific claim than the frozen-representation probe.
+    Encoder is re-initialised from the pretrained checkpoint for each fold."""
+    import torch.nn as nn
+    from sklearn.preprocessing import LabelEncoder
+
+    le = LabelEncoder().fit(y)
+    yi = le.transform(y)
+    n_cls = len(le.classes_)
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
+    accs, aucs = [], []
+    Xtok = zscore.transform(tokens) * masks.unsqueeze(-1).to(torch.float32)  # [N,n_max,F]
+    for tr, te in skf.split(np.zeros(len(yi)), yi):
+        enc = SetTransformerEncoder(token_dim=F, d_model=cfg.model.d_model, n_heads=cfg.model.n_heads,
+                                    n_layers=cfg.model.n_layers, dim_feedforward=cfg.model.dim_feedforward,
+                                    dropout=0.0, pool=cfg.model.get("pool", "mean")).to(device)
+        if checkpoint and os.path.exists(checkpoint):
+            ck = torch.load(checkpoint, map_location=device, weights_only=False)
+            sd = ck.get("encoder_state_dict") or ck.get("model_state_dict") or ck
+            sd = {k.replace("encoder.", "").replace("_orig_mod.", ""): v for k, v in sd.items()}
+            enc.load_state_dict(sd, strict=False)
+        head = nn.Linear(cfg.model.d_model, n_cls).to(device)
+        opt = torch.optim.AdamW(list(enc.parameters()) + list(head.parameters()), lr=lr, weight_decay=1e-4)
+        lossf = nn.CrossEntropyLoss()
+        Xtr = Xtok[tr].to(device); mtr = masks[tr].unsqueeze(1).to(device)
+        ytr = torch.from_numpy(yi[tr]).long().to(device)
+        enc.train(); head.train()
+        for _ in range(epochs):
+            opt.zero_grad()
+            z = enc({"otu": Xtr.unsqueeze(1), "mask": mtr}).flatten(1)
+            loss = lossf(head(z), ytr)
+            loss.backward(); opt.step()
+        enc.eval(); head.eval()
+        with torch.no_grad():
+            zte = enc({"otu": Xtok[te].unsqueeze(1).to(device),
+                       "mask": masks[te].unsqueeze(1).to(device)}).flatten(1)
+            logits = head(zte)
+            proba = torch.softmax(logits, -1).cpu().numpy()
+            pred = logits.argmax(-1).cpu().numpy()
+        accs.append(accuracy_score(yi[te], pred))
+        try:
+            aucs.append(_macro_auc(yi[te], proba, np.arange(n_cls)))
+        except Exception:
+            aucs.append(float("nan"))
+    return {"acc_mean": float(np.mean(accs)), "acc_se": float(np.std(accs, ddof=1) / np.sqrt(5)),
+            "auc_mean": float(np.nanmean(aucs)), "auc_se": float(np.nanstd(aucs, ddof=1) / np.sqrt(5))}
+
+
 def run(
     checkpoint: str = None,
     fname: str = "examples/microbiome_jepa/cfgs/layerB_worldmodel.yaml",
@@ -168,6 +239,9 @@ def run(
     d_model: int = 128,
     n_max: int = 256,
     max_samples: int = None,
+    corpus_zscore_n: int = 5000,   # >0: fit z-score on this many CORPUS samples (consistent w/ pretrain)
+    finetune: bool = False,        # also report a SUPERVISED fine-tuned upper bound (NOT the headline)
+    ft_epochs: int = 40,
     device: str = "cpu",
     out: str = "checkpoints/microbiome_jepa/realdata_infants",
 ):
@@ -195,15 +269,33 @@ def run(
 
     tokens, masks, sids, labels = load_infant_communities(
         data_dir, n_max=n_max, max_samples=max_samples)
+
+    # z-score: prefer CORPUS statistics (consistent with pretraining); fall back to infant tokens.
+    zscore_source = "infant_tokens"
     zscore = PerDimZScore().fit(tokens.reshape(-1, F), mask=masks.reshape(-1))
+    if corpus_zscore_n and corpus_zscore_n > 0:
+        try:
+            cz, used_synth = fit_corpus_zscore(data_dir, corpus_zscore_n, n_max)
+            if not used_synth:
+                zscore = cz
+                zscore_source = f"corpus_{corpus_zscore_n}_samples"
+                logger.info(f"using CORPUS z-score ({corpus_zscore_n} samples)")
+            else:
+                logger.warning("corpus z-score unavailable (synthetic fallback) -> infant-token z-score")
+        except Exception as e:
+            logger.warning(f"corpus z-score failed ({type(e).__name__}: {e}) -> infant-token z-score")
+
     Z = encode_communities(encoder, tokens, masks, zscore, dev)
     y = np.asarray(labels)
-    logger.info(f"encoded Z {Z.shape}; {len(np.unique(y))} Env classes")
+    logger.info(f"encoded Z {Z.shape}; {len(np.unique(y))} Env classes; zscore={zscore_source}")
 
-    # OUR probe: linear (LogReg) on the frozen JEPA embedding
+    # OUR probes on the SAME frozen JEPA embedding: linear (hardest SSL test) AND MLP (apples-to-apples
+    # with Susagi's classifier class). Encoder is FROZEN in both — the label-free claim is unchanged.
     jepa_probe = cv_classify(Z, y, lambda: LogisticRegression(max_iter=2000, C=10.0))
+    jepa_probe_mlp = cv_classify(
+        Z, y, lambda: MLPClassifier(hidden_layer_sizes=(128,), max_iter=300, random_state=42))
 
-    # Susagi baseline: MLP on the TRUE abundance matrix (apples-to-apples, same CV protocol)
+    # Susagi baseline: MLP on the TRUE abundance matrix (same CV protocol + same classifier class).
     Xb, cols = load_susagi_abundance_matrix(data_dir, sids)
     yb = np.asarray([labels[sids.index(c)] for c in cols])
     baseline = cv_classify(
@@ -213,22 +305,37 @@ def run(
     res = {
         "task": "infants_env", "pretrained_encoder": pretrained, "n_samples": len(y),
         "n_classes": int(len(np.unique(y))), "n_max": n_max, "d_model": cfg.model.d_model,
-        "jepa_linear_probe": jepa_probe, "susagi_mlp_baseline": baseline,
+        "jepa_linear_probe": jepa_probe, "jepa_mlp_probe": jepa_probe_mlp,
+        "susagi_mlp_baseline": baseline,
         "susagi_reported": {"acc": 0.549, "macro_auc": 0.912, "source": "Susagi env_predictions.txt (reference)"},
-        "zscore_note": "z-score fit on infant tokens (corpus z-score not persisted) — approximation",
+        "zscore_source": zscore_source,
         "tech_invariance": "N/A on infants (Instrument = 100% Illumina MiSeq, single class)",
     }
+
+    # OPTIONAL: supervised fine-tuned upper bound (clearly labelled, NOT the headline frozen result).
+    if finetune and pretrained:
+        ft = finetune_upper_bound(cfg, checkpoint, tokens, masks, zscore, y, dev, n_max, epochs=ft_epochs)
+        res["finetuned_upper_bound"] = {**ft, "note": "SUPERVISED fine-tune of encoder+head; an upper "
+                                        "bound, not the label-free frozen-representation claim."}
+
     Path(out).mkdir(parents=True, exist_ok=True)
     with open(os.path.join(out, "realdata_infants.json"), "w") as fh:
         json.dump(res, fh, indent=2)
 
     print("\n================ INFANT-ENV downstream probe ================")
-    print(f"pretrained_encoder={pretrained} n_samples={len(y)} n_classes={len(np.unique(y))} d_model={cfg.model.d_model}")
-    print(f"OUR JEPA linear probe : acc {jepa_probe['acc_mean']:.3f} ± {jepa_probe['acc_se']:.3f} | "
+    print(f"pretrained_encoder={pretrained} n_samples={len(y)} n_classes={len(np.unique(y))} "
+          f"d_model={cfg.model.d_model} zscore={zscore_source}")
+    print(f"OUR JEPA + LINEAR probe : acc {jepa_probe['acc_mean']:.3f} ± {jepa_probe['acc_se']:.3f} | "
           f"macroAUC {jepa_probe['auc_mean']:.3f} ± {jepa_probe['auc_se']:.3f}")
-    print(f"Susagi MLP (abundance): acc {baseline['acc_mean']:.3f} ± {baseline['acc_se']:.3f} | "
+    print(f"OUR JEPA + MLP probe    : acc {jepa_probe_mlp['acc_mean']:.3f} ± {jepa_probe_mlp['acc_se']:.3f} | "
+          f"macroAUC {jepa_probe_mlp['auc_mean']:.3f} ± {jepa_probe_mlp['auc_se']:.3f}")
+    print(f"Susagi MLP (abundance)  : acc {baseline['acc_mean']:.3f} ± {baseline['acc_se']:.3f} | "
           f"macroAUC {baseline['auc_mean']:.3f} ± {baseline['auc_se']:.3f}")
-    print(f"Susagi reported (ref) : acc 0.549 | macroAUC 0.912")
+    print(f"Susagi reported (ref)   : acc 0.549 | macroAUC 0.912")
+    if "finetuned_upper_bound" in res:
+        ft = res["finetuned_upper_bound"]
+        print(f"[upper bound] FINE-TUNED : acc {ft['acc_mean']:.3f} ± {ft['acc_se']:.3f} | "
+              f"macroAUC {ft['auc_mean']:.3f} ± {ft['auc_se']:.3f}  (supervised, not the headline)")
     print(f"saved -> {out}/realdata_infants.json")
     if not pretrained:
         print("NOTE: RANDOM encoder — probe is a harness check, NOT a result.")
