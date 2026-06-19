@@ -1,0 +1,32 @@
+# Tahoe-JEPA: cell-state JEPA on Tahoe-100M (differentiated vs GeneJEPA).
+meta:
+  seed: 0
+
+data:
+  cache_path: artifacts/tahoe/cache.pt
+  drop_frac: 0.3       # gene dropout per view (biological augmentation -- diff #3)
+  noise_std: 0.1
+  val_fraction: 0.2
+  batch_size: 512
+
+model:
+  henc: 512            # encoder hidden width
+  dstc: 128            # latent dim D
+  proj: 512            # projector width (regularizer space)
+
+loss:
+  reg: sigreg          # sigreg (BCS) -- diff #1 vs GeneJEPA's vicreg ; or "vicreg"
+  num_slices: 256      # SIGReg slices
+  lmbd: 10.0           # SIGReg weight
+  std_coeff: 10.0      # (vicreg only)
+  cov_coeff: 25.0      # (vicreg only)
+  pathway_coeff: 1.0   # PathwayCoherenceLoss -- diff #2 (gene-program structural prior)
+
+optim:
+  epochs: 250
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  probe_every: 10
+
+logging:
+  log_wandb: false

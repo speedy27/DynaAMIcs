@@ -1,0 +1,22 @@
+# Tahoe perturbation world model: frozen MosaicFM encoder + drug-conditioned predictor.
+meta:
+  seed: 0
+
+data:
+  cache_path: artifacts/tahoe/cache_pert.pt
+  val_fraction: 0.2
+  batch_size: 1024
+  num_workers: 8
+
+loss:
+  sig_coeff: 1.0       # PerturbationSignatureLoss (drug-signature consistency) -- biology
+  path_coeff: 1.0      # PathwayCoherenceLoss (program structure)               -- biology
+
+optim:
+  epochs: 250
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  probe_every: 10
+
+logging:
+  log_wandb: false
