@@ -22,5 +22,7 @@ ENC=$WORK/checkpoints/microbiome_jepa/realenc
 DATA=$EBJEPA_DSETS/susagi/data
 $PY -m examples.microbiome_jepa.tech_invariance --checkpoint $ENC/latest.pth.tar --fname $CFG \
   --data_dir $DATA --d_model 128 --n_max 256 --per_class_cap 2500 --device cpu \
+  --susagi_repo $WORK/Microbiome-Modelling \
+  --susagi_ckpt $DATA/model/checkpoint_epoch_0_final_newblack_2epoch.pt \
   --out $WORK/checkpoints/microbiome_jepa/tech_invariance
 echo "MB_TECH_DONE"

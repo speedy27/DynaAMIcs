@@ -185,6 +185,38 @@ def raw_meanpool(tokens, masks, zscore):
     return (s / n).numpy()
 
 
+@torch.no_grad()
+def susagi_imposter_rep(tokens, masks, repo, ckpt_path, device, bs=128,
+                        d_model=100, nhead=5, num_layers=5, dim_ff=400):
+    """The SUSAGI imposter model's per-sample rep = mean-pooled ENCODER hidden state (OTU-only forward).
+
+    Their MicrobiomeTransformer (Microbiome-Modelling/model.py) projects RAW ProkBERT OTU embeddings
+    (type1, 384-d) and runs a TransformerEncoder, then emits a per-OTU imposter SCORE. There is no
+    sample-level head, so we take the masked mean of the encoder output `x` (pre score-projection) as the
+    community embedding — the natural analog of our pooled JEPA community vector. We feed ONLY the raw
+    ProkBERT embeddings (tokens[...,:384], pre-z-score), matching their type1 input (no abundance, no
+    text). conf00.txt: d_model=100, nhead=5, num_layers=5, dim_ff=400."""
+    import sys
+    if repo not in sys.path:
+        sys.path.insert(0, repo)
+    from model import MicrobiomeTransformer  # the Susagi repo's model
+    m = MicrobiomeTransformer(input_dim_type1=384, input_dim_type2=1536, d_model=d_model, nhead=nhead,
+                              num_layers=num_layers, dim_feedforward=dim_ff, dropout=0.0).to(device)
+    sd = torch.load(ckpt_path, map_location=device, weights_only=False)["model_state_dict"]
+    m.load_state_dict(sd, strict=True)
+    m.eval()
+    reps = []
+    for i in range(0, len(tokens), bs):
+        emb = tokens[i:i + bs, :, :384].to(device)               # RAW ProkBERT [b,n_max,384]
+        mk = masks[i:i + bs].to(device)                          # [b,n_max] True=present
+        x = m.input_projection_type1(emb)                        # [b,n_max,d_model]
+        x = m.transformer(x, src_key_padding_mask=~mk)           # [b,n_max,d_model]
+        denom = mk.sum(1, keepdim=True).clamp_min(1).float()
+        rep = (x * mk.unsqueeze(-1).float()).sum(1) / denom      # masked mean -> [b,d_model]
+        reps.append(rep.float().cpu().numpy())
+    return np.concatenate(reps, 0)
+
+
 def probe(X, y, seed=42):
     """5-fold LogReg; returns acc + balanced acc + chance (majority)."""
     y = np.asarray(y)
@@ -213,6 +245,8 @@ def run(
     n_max: int = 256,
     per_class_cap: int = 2500,
     terms_max_lines: int = None,
+    susagi_repo: str = None,    # path to the Microbiome-Modelling repo (for the imposter-rep baseline)
+    susagi_ckpt: str = None,    # path to the Susagi imposter checkpoint (model_state_dict)
     device: str = "cpu",
     out: str = "checkpoints/microbiome_jepa/tech_invariance",
 ):
@@ -263,6 +297,12 @@ def run(
                                      dropout=0.0, pool=cfg.model.get("pool", "mean")).to(dev)
     reps["random_encoder"] = encode(enc_rand, tokens, masks, zscore, dev)
     reps["raw_meanpool"] = raw_meanpool(tokens, masks, zscore)
+    # the SUSAGI imposter rep (the user's named baseline), if its repo + checkpoint are provided
+    if susagi_ckpt and os.path.exists(susagi_ckpt) and susagi_repo and os.path.isdir(susagi_repo):
+        try:
+            reps["susagi_imposter"] = susagi_imposter_rep(tokens, masks, susagi_repo, susagi_ckpt, dev)
+        except Exception as e:
+            logger.warning(f"susagi imposter rep failed ({type(e).__name__}: {e}); skipping it")
 
     # biome control uses only samples with a biome label
     has_biome = np.array([b is not None for b in biome])
