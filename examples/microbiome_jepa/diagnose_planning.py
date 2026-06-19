@@ -71,6 +71,8 @@ def run(
     fname: str = "examples/microbiome_jepa/cfgs/layerB_worldmodel.yaml",
     checkpoint: str = "checkpoints/plan_model/latest.pth.tar",
     d_model: int = 128,
+    n_candidate: int = None,    # None -> use cfg (K=6, the committed K=6 diagnosis); set 24 for the big bet
+    collapse_reg: bool = True,  # True -> collapse-regime coeffs (committed default); False -> cfg defaults
     mpc_steps: int = 20,
     horizon: int = 6,
     n_samples: int = 96,
@@ -78,10 +80,15 @@ def run(
     n_iters: int = 3,
     tol_frac: float = 0.15,
     out: str = "checkpoints/microbiome_jepa/planning",
+    tag: str = "",
 ):
     dev = torch.device("cpu")
-    ov = {"model.d_model": d_model, "model.regularizer.sim_coeff_t": 4,
-          "model.regularizer.cov_coeff": 1, "model.regularizer.std_coeff": 0.25}
+    ov = {"model.d_model": d_model}
+    if collapse_reg:
+        ov.update({"model.regularizer.sim_coeff_t": 4, "model.regularizer.cov_coeff": 1,
+                   "model.regularizer.std_coeff": 0.25})
+    if n_candidate is not None:
+        ov["data.n_candidate"] = int(n_candidate)
     jepa, cfg, K = build_world_model(fname, checkpoint, dev, overrides=ov)
     sim, state_enc = build_glv_and_encoder(cfg, dev)
     attractors = sim.attractors
@@ -158,9 +165,10 @@ def run(
            "learned_mppi_success_rate": 0.0,
            "learned_mppi_note": "from job 74718: mppi 0% success, final_dist 4.88 (>= random 4.58)"}
     Path(out).mkdir(parents=True, exist_ok=True)
-    with open(Path(out) / "planning_diagnosis.json", "w") as f:
+    fn = Path(out) / (f"planning_diagnosis{('_' + tag) if tag else ''}.json")
+    with open(fn, "w") as f:
         json.dump(res, f, indent=2)
-    print(f"[diag] saved -> {out}/planning_diagnosis.json")
+    print(f"[diag] saved -> {fn}")
     return res
 
 
