@@ -68,7 +68,13 @@ def run(
     pool: str = None,
     use_amp: bool = None,
 ):
-    seed_list = [int(s) for s in str(seeds).split(",") if s != ""]
+    # fire turns "0,1,2" into a tuple (0,1,2) and "0" into int 0 — handle all of int/list/tuple/str.
+    if isinstance(seeds, (list, tuple)):
+        seed_list = [int(s) for s in seeds]
+    elif isinstance(seeds, int):
+        seed_list = [seeds]
+    else:
+        seed_list = [int(s) for s in str(seeds).strip("() ").split(",") if str(s).strip() != ""]
     sweep_ov = {}
     if sim_coeff_t is not None: sweep_ov["model.regularizer.sim_coeff_t"] = sim_coeff_t
     if cov_coeff is not None: sweep_ov["model.regularizer.cov_coeff"] = cov_coeff
