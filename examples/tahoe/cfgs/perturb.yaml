@@ -17,6 +17,7 @@ optim:
   lr: 1.0e-3
   weight_decay: 1.0e-4
   probe_every: 10
+  patience_probes: 5    # stop if skill_vs_meanshift flat for 5 probe evals = 50 epochs
 
 logging:
   log_wandb: false
