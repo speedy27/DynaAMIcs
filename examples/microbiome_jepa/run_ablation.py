@@ -57,8 +57,28 @@ def run(
     eval_n_traj: int = 128,
     batch_size: int = 64,
     out: str = "checkpoints/microbiome_jepa/ablation",
+    # --- optional sweep knobs (None => use the yaml value). For tuning the collapse regime
+    #     (Sobal: weak variance-reg + strong temporal-smoothness tempts slow-feature collapse that
+    #     IDM then rescues) and for shrinking the model when iterating fast.
+    sim_coeff_t: float = None,
+    cov_coeff: float = None,
+    std_coeff: float = None,
+    d_model: int = None,
+    n_species: int = None,
+    pool: str = None,
+    use_amp: bool = None,
 ):
     seed_list = [int(s) for s in str(seeds).split(",") if s != ""]
+    sweep_ov = {}
+    if sim_coeff_t is not None: sweep_ov["model.regularizer.sim_coeff_t"] = sim_coeff_t
+    if cov_coeff is not None: sweep_ov["model.regularizer.cov_coeff"] = cov_coeff
+    if std_coeff is not None: sweep_ov["model.regularizer.std_coeff"] = std_coeff
+    if d_model is not None: sweep_ov["model.d_model"] = d_model
+    if n_species is not None:
+        sweep_ov["data.n_species"] = n_species
+        sweep_ov["data.n_max"] = n_species
+    if pool is not None: sweep_ov["model.pool"] = pool
+    if use_amp is not None: sweep_ov["training.use_amp"] = use_amp
     out_dir = Path(out)
     out_dir.mkdir(parents=True, exist_ok=True)
     records = []  # one dict per (seed, arm)
@@ -74,6 +94,7 @@ def run(
                 "data.seed": seed,
                 "logging.tqdm_silent": True,
                 "logging.log_wandb": False,
+                **sweep_ov,
             }
             cfg = load_config(fname, ov, quiet=True)
             logger.info(f"=== train seed={seed} arm={arm} (idm_coeff={coeff}) epochs={epochs} ===")
@@ -130,7 +151,8 @@ def run(
     res_path = out_dir / "ablation_results.json"
     with open(res_path, "w") as f:
         json.dump({"seeds": seed_list, "epochs": epochs, "n_traj": n_traj,
-                   "eval_n_traj": eval_n_traj, "records": records, "summary": summary}, f, indent=2)
+                   "eval_n_traj": eval_n_traj, "config_overrides": sweep_ov,
+                   "records": records, "summary": summary}, f, indent=2)
     print(f"\nsaved raw numbers -> {res_path}")
 
     # ---- figure: grouped bars, fast (dynamics) vs slow (identity), idm on vs off ----
