@@ -230,3 +230,14 @@ arxiv/
 arxiv_tmp/
 CLAUDE.md
 setup.md
+
+artifacts/
+examples/microbiome/*.pdf
+
+/data/
+*.aux
+*.nav
+*.snm
+*.toc
+*.out
+*.vrb

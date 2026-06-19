@@ -142,6 +142,7 @@ def run(fname, overrides):
 
     dcfg = MicrobiomeConfig(
         cache_path=cfg.data.cache_path, n_window=cfg.data.n_window,
+        tp_stride=cfg.data.get("tp_stride", 1),
         n_max=cfg.data.n_max, emb_dim=cfg.model.emb_dim,
         val_fraction=cfg.data.val_fraction, seed=cfg.meta.seed,
     )
@@ -155,7 +156,7 @@ def run(fname, overrides):
     jepa = build_jepa(cfg, A, device)
     alpha_loss = AlphaDiversityLoss(state_dim=cfg.model.dstc).to(device)
     phylo_loss = PhyloDispersionLoss().to(device)
-    tvar_loss = TemporalVarianceLoss(gamma=cfg.loss.get("tvar_gamma", 1.0)).to(device)
+    tvar_loss = TemporalVarianceLoss(margin=cfg.loss.get("tvar_margin", 1.0))
 
     n_params = sum(p.numel() for p in jepa.parameters() if p.requires_grad)
     n_enc = sum(p.numel() for p in jepa.encoder.parameters())
@@ -166,13 +167,12 @@ def run(fname, overrides):
     sched = CosineWithWarmup(opt, total_steps=max(1, len(train_loader) * cfg.optim.epochs),
                              warmup_ratio=0.1, min_lr=cfg.optim.lr * 0.01)
 
-    ld, lp = cfg.loss.div_coeff, cfg.loss.phylo_coeff
-    lt = cfg.loss.get("tvar_coeff", 0.0)
+    ld, lp, lt = cfg.loss.div_coeff, cfg.loss.phylo_coeff, cfg.loss.get("tvar_coeff", 0.0)
+    probe_every = int(cfg.optim.get("probe_every", 5))
     last_val = {}
     for ep in range(1, cfg.optim.epochs + 1):
         jepa.train()
-        agg = {"loss": 0.0, "rloss": 0.0, "ploss": 0.0, "div": 0.0,
-               "phylo": 0.0, "tvar": 0.0, "n": 0}
+        agg = {"loss": 0.0, "rloss": 0.0, "ploss": 0.0, "div": 0.0, "phylo": 0.0, "tvarl": 0.0, "n": 0}
         for batch in train_loader:
             obs = batch["observations"].to(device)
             act = batch["actions"].to(device)
@@ -196,16 +196,17 @@ def run(fname, overrides):
             ploss_val = ploss.item() if torch.is_tensor(ploss) else float(ploss)
             agg["loss"] += total.item() * b; agg["rloss"] += rloss.item() * b
             agg["ploss"] += ploss_val * b; agg["div"] += l_div.item() * b
-            agg["phylo"] += l_phylo.item() * b; agg["tvar"] += l_tvar.item() * b
+            agg["phylo"] += l_phylo.item() * b; agg["tvarl"] += l_tvar.item() * b
             agg["n"] += b
         n = max(1, agg["n"])
+        do_probe = (ep % probe_every == 0) or (ep == cfg.optim.epochs)
         val = evaluate(jepa, alpha_loss, phylo_loss, val_loader, cfg, device,
-                       fit_loader=train_loader)
+                       fit_loader=train_loader if do_probe else None)
         last_val = val
         print(f"[ep {ep:03d}] train loss={agg['loss']/n:.3f} pred={agg['ploss']/n:.4f} "
-              f"div={agg['div']/n:.4f} phylo={agg['phylo']/n:.4f} tvarL={agg['tvar']/n:.4f} "
+              f"div={agg['div']/n:.4f} phylo={agg['phylo']/n:.4f} tvarL={agg['tvarl']/n:.4f} "
               f"reg={agg['rloss']/n:.3f} || val skill={val['skill_vs_identity']:.3f}x "
-              f"tvar={val['tvar']:.3f} effrank={val['effrank']:.1f} "
+              f"tvar={val['tvar']:.4f} effrank={val['effrank']:.1f} "
               f"age_r2={val.get('age_r2', float('nan')):.3f} "
               f"t1d_auroc={val.get('t1d_auroc', float('nan')):.3f}")
 

@@ -30,6 +30,7 @@ def main():
 
     dcfg = MicrobiomeConfig(
         cache_path=cfg.data.cache_path, n_window=cfg.data.n_window,
+        tp_stride=cfg.data.get("tp_stride", 1),
         n_max=cfg.data.n_max, emb_dim=cfg.model.emb_dim,
         val_fraction=cfg.data.val_fraction, seed=cfg.meta.seed,
     )

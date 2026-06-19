@@ -129,7 +129,7 @@ to microbiome time series. **Size:** ~0.7 M params total (~0.2 M in the
                                    + temporal-similarity + inverse-dynamics
    +  λ_d · AlphaDiversityLoss     a head must recover Shannon α-diversity   ◄ bio, option 2
    +  λ_p · PhyloDispersionLoss    latent dist ≈ soft-UniFrac phylo dist      ◄ bio, option 3
-   +  λ_t · TemporalVarianceLoss   per-dim std ALONG TIME ≥ γ                 ◄ the collapse FIX
+   +  λ_t · TemporalVarianceLoss   per-dim std ALONG TIME ≥ margin            ◄ the collapse FIX
 ```
 
 The first two lines are the standard eb-JEPA objective (inside `unroll`). The
