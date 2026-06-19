@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microbiome-Modelling — Architecture (Susagi + JEPA)</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --ink:#e6edf3;
+    --muted:#9aa7b4; --line:#30363d;
+    --dna:#3fb950; --txt:#d29922; --enc:#58a6ff; --pred:#bc8cff;
+    --ema:#f778ba; --loss:#ff7b72; --gold:#ffd33d;
+    --accent:#58a6ff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:32px 20px 96px}
+  header.hero{
+    text-align:center; padding:48px 20px 28px;
+    background:radial-gradient(1200px 400px at 50% -120px, #1f6feb33, transparent);
+    border-bottom:1px solid var(--line);
+  }
+  header.hero h1{font-size:40px; margin:0 0 6px; letter-spacing:-.5px}
+  header.hero .sub{color:var(--muted); font-size:18px; max-width:720px; margin:8px auto 0}
+  .pill{display:inline-block; padding:3px 12px; border-radius:999px; font-size:13px;
+    background:#1f6feb22; border:1px solid #1f6feb55; color:#79c0ff; margin:4px 4px 0}
+  h2{font-size:27px; margin:56px 0 4px; letter-spacing:-.3px; display:flex; align-items:center; gap:12px}
+  h2 .n{display:inline-flex; align-items:center; justify-content:center; width:36px;height:36px;
+    border-radius:10px; background:var(--accent); color:#0d1117; font-size:18px; font-weight:800; flex:none}
+  h2 + .lead{color:var(--muted); margin:0 0 20px; font-size:17px}
+  h3{font-size:20px; margin:30px 0 8px}
+  p{margin:10px 0}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px 24px; margin:18px 0}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+  @media(max-width:760px){.grid2,.grid3{grid-template-columns:1fr}}
+  .tag{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700}
+  code, .mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px}
+  code{background:#ffffff0d; padding:2px 6px; border-radius:6px; color:#ffa657}
+  pre{background:#010409; border:1px solid var(--line); border-radius:12px; padding:16px 18px;
+    overflow:auto; font-size:13px; line-height:1.6}
+  pre .c{color:#8b949e}
+  .eli5{border-left:4px solid var(--gold); background:#ffd33d12; border-radius:0 12px 12px 0;
+    padding:14px 18px; margin:16px 0}
+  .eli5 b{color:var(--gold)}
+  .note{border-left:4px solid var(--accent); background:#58a6ff12; border-radius:0 12px 12px 0; padding:12px 18px; margin:14px 0}
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14.5px}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line)}
+  th{color:var(--muted); font-weight:700; text-transform:uppercase; font-size:12px; letter-spacing:.05em}
+  td code{font-size:13px}
+  .kbd{display:inline-block; background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:1px 7px; font-size:12.5px; color:var(--ink)}
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin:6px 0 2px; font-size:13px; color:var(--muted)}
+  .legend i{display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px}
+  .svgbox{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px; margin:16px 0}
+  .svgbox svg{display:block; width:100%; height:auto}
+  .toc{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:22px 0 0}
+  .toc a{color:#79c0ff; text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-size:14px; background:var(--panel)}
+  .toc a:hover{background:var(--panel2)}
+  .muted{color:var(--muted)}
+  .big{font-size:30px; font-weight:800}
+  footer{border-top:1px solid var(--line); margin-top:60px; padding-top:20px; color:var(--muted); font-size:13px; text-align:center}
+  .flow{display:flex; align-items:center; gap:0; flex-wrap:wrap; justify-content:center; margin:18px 0}
+  .step{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; text-align:center; min-width:120px}
+  .step .t{font-weight:700; font-size:14px}
+  .step .d{font-size:12px; color:var(--muted)}
+  .arr{color:var(--accent); font-size:24px; padding:0 8px}
+  ul.clean{margin:8px 0; padding-left:20px}
+  ul.clean li{margin:6px 0}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="pill">InstaDeep · Hack the World</div>
+  <h1>🦠 Microbiome-Modelling</h1>
+  <div class="sub">Comment <b>Susagi</b> (le modèle de base) et le <b>Microbiome-JEPA</b> (le world model contrôlable) fonctionnent — expliqué simplement, de A à Z.</div>
+  <div class="toc">
+    <a href="#idee">L'idée en 30s</a>
+    <a href="#data">Les données</a>
+    <a href="#datasets">Les 7 datasets</a>
+    <a href="#susagi">Susagi (modèle de base)</a>
+    <a href="#transfo">Le Transformer</a>
+    <a href="#jepa">Le World Model (JEPA)</a>
+    <a href="#train">Entraînement</a>
+    <a href="#demo">La démo</a>
+    <a href="#glossaire">Glossaire</a>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ============================================================= -->
+<h2 id="idee"><span class="n">0</span>L'idée en 30 secondes</h2>
+<p class="lead">Pour les pressés (et les collègues).</p>
+
+<div class="card">
+  <div class="grid3">
+    <div>
+      <div class="tag" style="color:var(--enc)">Susagi apprend</div>
+      <p>« Quelles bactéries vont <b>ensemble</b> dans une communauté microbienne saine ? » — sans labels, juste en repérant les <b>intrus</b>.</p>
+    </div>
+    <div>
+      <div class="tag" style="color:var(--pred)">Le JEPA prédit</div>
+      <p>« Comment cette communauté va <b>évoluer dans le temps</b> ? » — un <b>world model</b> qui roule l'état du microbiote vers le futur.</p>
+    </div>
+    <div>
+      <div class="tag" style="color:var(--gold)">La démo prescrit</div>
+      <p>« Quelle <b>intervention</b> (ex: type d'allaitement) amène le plus vite vers un intestin <b>sain</b> ? » — un planificateur.</p>
+    </div>
+  </div>
+</div>
+
+<div class="eli5">
+  <b>Version « explique-moi comme si j'avais 5 ans » :</b> Imagine une boîte de Lego (= une communauté de bactéries). Susagi a vu des millions de boîtes et sait reconnaître quelle pièce <i>n'a rien à faire là</i>. Le JEPA, lui, regarde la boîte d'un bébé à 1 mois et devine à quoi elle ressemblera à 2 ans — et te dit quoi changer pour qu'elle finisse « en bonne santé ».
+</div>
+
+<!-- ============================================================= -->
+<h2 id="data"><span class="n">1</span>Les données : de l'ADN à des vecteurs</h2>
+<p class="lead">On ne donne jamais de « noms » de bactéries au modèle. On lui donne de la géométrie.</p>
+
+<div class="flow">
+  <div class="step"><div class="t">SSU rRNA</div><div class="d">ADN ribosomal des bactéries</div></div>
+  <div class="arr">→</div>
+  <div class="step"><div class="t">OTU @97%</div><div class="d">~100 000 « espèces » de référence (MicrobeAtlas)</div></div>
+  <div class="arr">→</div>
+  <div class="step" style="border-color:var(--dna)"><div class="t">ProkBERT</div><div class="d">embedding ADN → vecteur 384-D</div></div>
+  <div class="arr">→</div>
+  <div class="step"><div class="t">Communauté</div><div class="d">= un <i>ensemble</i> de vecteurs</div></div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:4px">Le vocabulaire</h3>
+    <table>
+      <tr><th>Terme</th><th>Ce que c'est</th></tr>
+      <tr><td><code>OTU</code></td><td>« Operational Taxonomic Unit » ≈ une espèce de bactérie (regroupée à 97% de similarité ADN)</td></tr>
+      <tr><td><code>SSU rRNA</code></td><td>Le morceau d'ADN qui sert de « carte d'identité » d'une bactérie</td></tr>
+      <tr><td><code>ProkBERT</code></td><td>Un modèle de langage <i>de l'ADN</i> : transforme une séquence en vecteur 384-D (<code>OTU_EMB=384</code>)</td></tr>
+      <tr><td><code>Communauté</code></td><td>Un échantillon = un <b>set</b> d'OTUs présents (pas d'ordre, pas de comptage)</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:4px">Les jeux de données</h3>
+    <ul class="clean">
+      <li><b>MicrobeAtlas</b> — la base de référence (~100k OTUs), source des embeddings ProkBERT.</li>
+      <li><b>DIABIMMUNE</b> — intestins de <b>bébés suivis dans le temps</b> (âge, pays, allaitement). 🔑 C'est le carburant du world model.</li>
+      <li><b>IBS / Gingivitis / Snowmelt / Infants</b> — tâches d'évaluation aval (zero-shot).</li>
+    </ul>
+    <div class="note">Texte optionnel (biome, hôte, technologie de séquençage) encodé avec <code>text-embedding-3-small</code> en 1536-D (<code>TXT_EMB</code>). Variante <b>DNA+text</b> — mais les résultats principaux utilisent <b>DNA-only</b>.</div>
+  </div>
+</div>
+
+<!-- ============================================================= -->
+<h2 id="datasets"><span class="n">1bis</span>Les 7 datasets — c'est quoi, en vrai ?</h2>
+<p class="lead">Chaque dataset = un <b>tableau</b>. 1 ligne = 1 échantillon (un tube : caca, salive, sol…). Les colonnes disent <b>quelles bactéries sont dedans</b> + quelques infos (âge, pays, malade ou pas…).</p>
+
+<div class="eli5"><b>L'image mentale :</b> imagine un classeur Excel par dataset. Une ligne = « le tube n°427 ». Une colonne magique liste les bactéries trouvées dans ce tube. Les autres colonnes, c'est l'étiquette du tube (qui ? où ? quand ? sain ?).</div>
+
+<h3>🌍 Les 2 datasets « fondamentaux » (servent à TOUT)</h3>
+<div class="grid2">
+  <div class="card" style="border-color:var(--dna)">
+    <div class="tag" style="color:var(--dna)">MicrobeAtlas — le dictionnaire</div>
+    <p>Le <b>catalogue mondial</b> des bactéries. ~100 000 espèces de référence, chacune transformée en vecteur 384-D par ProkBERT.</p>
+    <ul class="clean">
+      <li><code>samples-otus.97.mapped</code> (<b>20 Go</b>) : « quel tube contient quelles bactéries » à l'échelle planétaire</li>
+      <li><code>prokbert_embeddings.h5</code> (670 Mo) : <b>chaque bactérie → un vecteur</b> (le carburant du modèle)</li>
+      <li><code>blacklist.txt</code> : tubes pourris à ignorer</li>
+    </ul>
+    <p class="muted">👉 Sert à <b>entraîner Susagi</b> (le « trouve l'imposteur »).</p>
+  </div>
+  <div class="card" style="border-color:var(--pred)">
+    <div class="tag" style="color:var(--pred)">DIABIMMUNE — le film des bébés</div>
+    <p>Des <b>bébés suivis dans le temps</b> : on leur prend plusieurs échantillons à différents âges. C'est le SEUL dataset où on voit l'intestin <b>évoluer</b>.</p>
+    <ul class="clean">
+      <li><code>samples.csv</code> : sujet, <b>pays, âge, cohorte</b></li>
+      <li><code>milk.csv</code> : <b>type d'allaitement</b> (= le levier qu'on peut changer)</li>
+    </ul>
+    <p class="muted">👉 Sert à <b>entraîner le world model (JEPA)</b> : « état à 1 mois → état à 2 mois ».</p>
+  </div>
+</div>
+
+<h3>🧪 Les 4 datasets « d'examen » (on teste le modèle, on ne le ré-entraîne PAS)</h3>
+<div class="card">
+<table>
+  <tr><th>Dataset</th><th>C'est quoi le tube ?</th><th>Colonnes-clés</th><th>La question posée</th></tr>
+  <tr><td><b>IBS</b></td><td>Intestins d'adultes</td><td><code>country, ibs</code></td><td>Cette personne a-t-elle le syndrome de l'intestin irritable ? (dans plusieurs pays)</td></tr>
+  <tr><td><b>Gingivitis</b></td><td>Bouche / gencives</td><td>métadonnées orales</td><td>Reconnaître une communauté buccale saine vs malade</td></tr>
+  <tr><td><b>Infants</b></td><td>Nourrissons</td><td><code>SampleID, Env</code></td><td>Dans quel environnement vit ce bébé ?</td></tr>
+  <tr><td><b>Snowmelt</b></td><td>Sol / fonte des neiges 🏔️</td><td>géoloc</td><td>Microbiome de l'environnement (pas humain du tout)</td></tr>
+</table>
+<p class="muted">Ces 4-là prouvent que le modèle <b>généralise</b> : entraîné sur autre chose, il marche quand même sur ces tubes jamais vus (« zero-shot »).</p>
+</div>
+
+<div class="note"><b>Le point important :</b> Susagi apprend les règles sur le <b>gros dictionnaire (MicrobeAtlas)</b> → le JEPA apprend le <b>temps sur les bébés (DIABIMMUNE)</b> → on vérifie que ça tient la route sur <b>4 tubes différents (IBS, bouche, bébés, sol)</b>.</div>
+
+<!-- ============================================================= -->
+<h2 id="susagi"><span class="n">2</span>Susagi — le modèle de base (« trouve l'imposteur »)</h2>
+<p class="lead">Un objectif auto-supervisé : pas besoin de labels, juste savoir qui appartient à la communauté.</p>
+
+<div class="card">
+  <h3 style="margin-top:4px">L'objectif « imposteur »</h3>
+  <p>Pour chaque échantillon avec ses vraies OTUs <code>Sᵢ</code>, on fabrique une version corrompue <code>S'ᵢ</code> en ajoutant des <b>imposteurs</b> — des bactéries proches dans l'espace ADN mais qui <i>n'étaient pas là</i>.</p>
+  <div class="flow">
+    <div class="step" style="border-color:var(--dna)"><div class="t">Sᵢ (vrais)</div><div class="d">OTUs réellement présents</div></div>
+    <div class="arr">+</div>
+    <div class="step" style="border-color:var(--loss)"><div class="t">Nᵢ (imposteurs)</div><div class="d">≈ 33% en plus, cosinus proche</div></div>
+    <div class="arr">→</div>
+    <div class="step"><div class="t">S'ᵢ = Sᵢ ∪ Nᵢ</div><div class="d">set mélangé donné au modèle</div></div>
+    <div class="arr">→</div>
+    <div class="step" style="border-color:var(--enc)"><div class="t">1 logit / OTU</div><div class="d">haut = vrai · bas = imposteur</div></div>
+  </div>
+  <div class="eli5"><b>L'intuition :</b> si le modèle sait écarter une bactérie « presque crédible mais pas à sa place », c'est qu'il a appris les <b>règles de cohabitation</b> des communautés. Ces règles = des <b>états stables</b> qu'on exploitera ensuite pour prédire le futur.</div>
+  <p class="muted">Loss : binary cross-entropy <b>équilibrée par classe</b> (contributions positives et négatives normalisées séparément). Difficulté des négatifs variée en bougeant le seuil de cosinus.</p>
+</div>
+
+<!-- ============================================================= -->
+<h2 id="transfo"><span class="n">3</span>L'architecture du Transformer</h2>
+<p class="lead"><code>MicrobiomeTransformer</code> — fichier <span class="mono">model.py</span>. Petit, propre, et <b>invariant à l'ordre</b>.</p>
+
+<div class="legend">
+  <span><i style="background:var(--dna)"></i>Embeddings ADN (384-D)</span>
+  <span><i style="background:var(--txt)"></i>Embeddings texte (1536-D, optionnel)</span>
+  <span><i style="background:var(--enc)"></i>Transformer encoder</span>
+  <span><i style="background:var(--loss)"></i>Sortie : logits</span>
+</div>
+
+<div class="svgbox">
+<svg viewBox="0 0 980 430" font-family="ui-sans-serif,system-ui" font-size="13">
+  <defs>
+    <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+  <!-- inputs -->
+  <g>
+    <rect x="20" y="40" width="150" height="70" rx="10" fill="#3fb95022" stroke="#3fb950"/>
+    <text x="95" y="68" fill="#e6edf3" text-anchor="middle" font-weight="700">OTUs (set)</text>
+    <text x="95" y="88" fill="#9aa7b4" text-anchor="middle">embeddings_type1</text>
+    <text x="95" y="103" fill="#9aa7b4" text-anchor="middle">(B, L₁, 384)</text>
+
+    <rect x="20" y="150" width="150" height="70" rx="10" fill="#d2992222" stroke="#d29922"/>
+    <text x="95" y="178" fill="#e6edf3" text-anchor="middle" font-weight="700">Texte (option)</text>
+    <text x="95" y="198" fill="#9aa7b4" text-anchor="middle">embeddings_type2</text>
+    <text x="95" y="213" fill="#9aa7b4" text-anchor="middle">(B, L₂, 1536)</text>
+  </g>
+  <!-- projections -->
+  <rect x="220" y="40" width="140" height="70" rx="10" fill="#1c2330" stroke="#30363d"/>
+  <text x="290" y="70" fill="#e6edf3" text-anchor="middle" font-weight="700">Linear → d</text>
+  <text x="290" y="90" fill="#9aa7b4" text-anchor="middle">proj. type1</text>
+  <rect x="220" y="150" width="140" height="70" rx="10" fill="#1c2330" stroke="#30363d"/>
+  <text x="290" y="180" fill="#e6edf3" text-anchor="middle" font-weight="700">Linear → d</text>
+  <text x="290" y="200" fill="#9aa7b4" text-anchor="middle">proj. type2</text>
+
+  <line x1="170" y1="75" x2="218" y2="75" stroke="#58a6ff" stroke-width="2" marker-end="url(#ah)"/>
+  <line x1="170" y1="185" x2="218" y2="185" stroke="#58a6ff" stroke-width="2" marker-end="url(#ah)"/>
+
+  <!-- concat -->
+  <rect x="410" y="95" width="120" height="120" rx="10" fill="#1c2330" stroke="#30363d"/>
+  <text x="470" y="145" fill="#e6edf3" text-anchor="middle" font-weight="700">Concat</text>
+  <text x="470" y="165" fill="#9aa7b4" text-anchor="middle">(B, L₁+L₂, d)</text>
+  <text x="470" y="185" fill="#9aa7b4" text-anchor="middle">+ padding mask</text>
+  <line x1="360" y1="75" x2="408" y2="125" stroke="#58a6ff" stroke-width="2" marker-end="url(#ah)"/>
+  <line x1="360" y1="185" x2="408" y2="165" stroke="#58a6ff" stroke-width="2" marker-end="url(#ah)"/>
+
+  <!-- transformer -->
+  <rect x="575" y="60" width="190" height="190" rx="12" fill="#58a6ff22" stroke="#58a6ff" stroke-width="2"/>
+  <text x="670" y="92" fill="#e6edf3" text-anchor="middle" font-weight="800">Transformer Encoder</text>
+  <text x="670" y="118" fill="#9aa7b4" text-anchor="middle">d_model = 100</text>
+  <text x="670" y="138" fill="#9aa7b4" text-anchor="middle">num_layers = 5</text>
+  <text x="670" y="158" fill="#9aa7b4" text-anchor="middle">nhead = 5</text>
+  <text x="670" y="178" fill="#9aa7b4" text-anchor="middle">ffn = 400</text>
+  <text x="670" y="206" fill="#ffd33d" text-anchor="middle" font-weight="700">PAS de positional</text>
+  <text x="670" y="224" fill="#ffd33d" text-anchor="middle" font-weight="700">encoding</text>
+  <line x1="530" y1="155" x2="573" y2="155" stroke="#58a6ff" stroke-width="2" marker-end="url(#ah)"/>
+
+  <!-- output -->
+  <rect x="810" y="90" width="150" height="130" rx="10" fill="#ff7b7222" stroke="#ff7b72"/>
+  <text x="885" y="130" fill="#e6edf3" text-anchor="middle" font-weight="700">Output head</text>
+  <text x="885" y="150" fill="#9aa7b4" text-anchor="middle">Linear → 1</text>
+  <text x="885" y="174" fill="#e6edf3" text-anchor="middle">1 logit / OTU</text>
+  <text x="885" y="194" fill="#9aa7b4" text-anchor="middle">(B, L)</text>
+  <line x1="765" y1="155" x2="808" y2="155" stroke="#58a6ff" stroke-width="2" marker-end="url(#ah)"/>
+
+  <!-- invariance note -->
+  <text x="490" y="300" fill="#9aa7b4" text-anchor="middle" font-style="italic">Pas de positional encoding ⇒ le modèle traite l'entrée comme un ENSEMBLE :</text>
+  <text x="490" y="320" fill="#9aa7b4" text-anchor="middle" font-style="italic">l'ordre des bactéries n'a aucune importance (invariance par permutation).</text>
+  <text x="490" y="350" fill="#9aa7b4" text-anchor="middle" font-style="italic">Le texte, s'il est présent, sert UNIQUEMENT de contexte via l'attention.</text>
+</svg>
+</div>
+
+<div class="card">
+<pre><span class="c"># model.py — le cœur, en 4 lignes</span>
+x1 = input_projection_type1(emb_dna)      <span class="c"># (B, L₁, 384) → (B, L₁, d=100)</span>
+x2 = input_projection_type2(emb_text)     <span class="c"># (B, L₂, 1536) → (B, L₂, d=100)</span>
+x  = transformer(cat([x1, x2]), mask)     <span class="c"># attention sur l'ensemble entier</span>
+logits = output_projection(x).squeeze(-1) <span class="c"># 1 score par OTU</span></pre>
+</div>
+
+<!-- ============================================================= -->
+<h2 id="jepa"><span class="n">4</span>Le World Model : Microbiome-JEPA</h2>
+<p class="lead">On réutilise l'encodeur Susagi, et on lui ajoute la capacité de <b>prédire le futur dans l'espace latent</b>. Style I-JEPA, adapté aux <i>sets</i> microbiens. Fichier <span class="mono">scripts/jepa/jepa.py</span>.</p>
+
+<div class="card">
+  <div class="legend">
+    <span><i style="background:var(--enc)"></i>Encoder f_θ (online)</span>
+    <span><i style="background:var(--ema)"></i>Target f_θ̄ (EMA, gelé)</span>
+    <span><i style="background:var(--pred)"></i>Predictor g_φ (action)</span>
+    <span><i style="background:var(--loss)"></i>Loss</span>
+  </div>
+
+<div class="svgbox">
+<svg viewBox="0 0 980 470" font-family="ui-sans-serif,system-ui" font-size="13">
+  <defs>
+    <marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#58a6ff"/></marker>
+    <marker id="a3" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#bc8cff"/></marker>
+    <marker id="a4" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ff7b72"/></marker>
+  </defs>
+
+  <!-- state t -->
+  <rect x="20" y="60" width="150" height="64" rx="10" fill="#3fb95022" stroke="#3fb950"/>
+  <text x="95" y="86" fill="#e6edf3" text-anchor="middle" font-weight="700">État t</text>
+  <text x="95" y="106" fill="#9aa7b4" text-anchor="middle">communauté Sₜ</text>
+
+  <!-- encoder online -->
+  <rect x="220" y="50" width="150" height="84" rx="10" fill="#58a6ff22" stroke="#58a6ff" stroke-width="2"/>
+  <text x="295" y="80" fill="#e6edf3" text-anchor="middle" font-weight="800">Encoder f_θ</text>
+  <text x="295" y="100" fill="#9aa7b4" text-anchor="middle">transformer +</text>
+  <text x="295" y="116" fill="#9aa7b4" text-anchor="middle">masked mean-pool</text>
+  <line x1="170" y1="92" x2="218" y2="92" stroke="#58a6ff" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- z_t -->
+  <circle cx="455" cy="92" r="34" fill="#0d1117" stroke="#58a6ff" stroke-width="2"/>
+  <text x="455" y="89" fill="#e6edf3" text-anchor="middle" font-weight="800">zₜ</text>
+  <text x="455" y="105" fill="#9aa7b4" text-anchor="middle" font-size="11">100-D</text>
+  <line x1="370" y1="92" x2="418" y2="92" stroke="#58a6ff" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- action -->
+  <rect x="360" y="185" width="190" height="64" rx="10" fill="#1c2330" stroke="#30363d"/>
+  <text x="455" y="211" fill="#e6edf3" text-anchor="middle" font-weight="700">Action aₜ</text>
+  <text x="455" y="231" fill="#9aa7b4" text-anchor="middle">dt · pays · cohorte · lait</text>
+
+  <!-- predictor -->
+  <rect x="560" y="50" width="160" height="84" rx="10" fill="#bc8cff22" stroke="#bc8cff" stroke-width="2"/>
+  <text x="640" y="80" fill="#e6edf3" text-anchor="middle" font-weight="800">Predictor g_φ</text>
+  <text x="640" y="100" fill="#9aa7b4" text-anchor="middle">FiLM(aₜ) + MLP</text>
+  <text x="640" y="116" fill="#9aa7b4" text-anchor="middle">résiduel (zₜ + Δ)</text>
+  <line x1="489" y1="92" x2="558" y2="92" stroke="#bc8cff" stroke-width="2" marker-end="url(#a3)"/>
+  <line x1="455" y1="185" x2="500" y2="136" stroke="#bc8cff" stroke-width="2" marker-end="url(#a3)"/>
+
+  <!-- z_hat -->
+  <circle cx="800" cy="92" r="34" fill="#0d1117" stroke="#bc8cff" stroke-width="2"/>
+  <text x="800" y="89" fill="#e6edf3" text-anchor="middle" font-weight="800">ẑₜ₊₁</text>
+  <text x="800" y="105" fill="#9aa7b4" text-anchor="middle" font-size="11">prédit</text>
+  <line x1="720" y1="92" x2="763" y2="92" stroke="#bc8cff" stroke-width="2" marker-end="url(#a3)"/>
+
+  <!-- state t+1 -->
+  <rect x="20" y="330" width="150" height="64" rx="10" fill="#3fb95022" stroke="#3fb950"/>
+  <text x="95" y="356" fill="#e6edf3" text-anchor="middle" font-weight="700">État t+1 (réel)</text>
+  <text x="95" y="376" fill="#9aa7b4" text-anchor="middle">communauté Sₜ₊₁</text>
+
+  <!-- EMA target -->
+  <rect x="220" y="322" width="150" height="84" rx="10" fill="#f778ba22" stroke="#f778ba" stroke-width="2"/>
+  <text x="295" y="352" fill="#e6edf3" text-anchor="middle" font-weight="800">Target f_θ̄</text>
+  <text x="295" y="372" fill="#9aa7b4" text-anchor="middle">copie EMA, gelée</text>
+  <text x="295" y="388" fill="#9aa7b4" text-anchor="middle">stop-grad</text>
+  <line x1="170" y1="362" x2="218" y2="362" stroke="#f778ba" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- z target -->
+  <circle cx="455" cy="362" r="34" fill="#0d1117" stroke="#f778ba" stroke-width="2"/>
+  <text x="455" y="359" fill="#e6edf3" text-anchor="middle" font-weight="800">z̄ₜ₊₁</text>
+  <text x="455" y="375" fill="#9aa7b4" text-anchor="middle" font-size="11">cible</text>
+  <line x1="370" y1="362" x2="418" y2="362" stroke="#f778ba" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- loss -->
+  <rect x="690" y="320" width="180" height="88" rx="10" fill="#ff7b7222" stroke="#ff7b72" stroke-width="2"/>
+  <text x="780" y="350" fill="#e6edf3" text-anchor="middle" font-weight="800">Loss</text>
+  <text x="780" y="370" fill="#9aa7b4" text-anchor="middle">smooth-L1(ẑₜ₊₁, z̄ₜ₊₁)</text>
+  <text x="780" y="388" fill="#9aa7b4" text-anchor="middle">+ VICReg + masked-set</text>
+  <!-- arrows to loss -->
+  <path d="M800,126 L800,318" stroke="#ff7b72" stroke-width="2" fill="none" marker-end="url(#a4)"/>
+  <line x1="489" y1="362" x2="688" y2="362" stroke="#ff7b72" stroke-width="2" marker-end="url(#a4)"/>
+
+  <!-- EMA dashed feedback -->
+  <path d="M295,134 C295,200 110,210 95,290 L95,328" stroke="#f778ba" stroke-width="1.6" fill="none" stroke-dasharray="5 5"/>
+  <text x="120" y="250" fill="#f778ba" font-size="11" font-style="italic">EMA ← f_θ</text>
+</svg>
+</div>
+
+  <p class="muted">L'astuce I-JEPA : on ne prédit <b>pas les pixels / les OTUs exacts</b> (trop dur, bruité). On prédit la <b>représentation latente</b> de l'état suivant, fournie par une copie « cible » lente (EMA) du même encodeur. Le <code>stop-grad</code> + l'EMA empêchent la triche (collapse).</p>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:4px">Les 4 briques</h3>
+    <table>
+      <tr><th>Brique</th><th>Rôle</th></tr>
+      <tr><td style="color:var(--enc)"><b>f_θ</b> (encoder)</td><td>set d'OTUs → état latent <code>z</code> (poids Susagi réutilisés + mean-pool masqué)</td></tr>
+      <tr><td style="color:var(--ema)"><b>f_θ̄</b> (target)</td><td>copie EMA gelée de f_θ — fabrique les cibles de prédiction</td></tr>
+      <tr><td style="color:var(--pred)"><b>g_φ</b> (predictor)</td><td><code>(zₜ, aₜ) → ẑₜ₊₁</code> via FiLM + MLP résiduel</td></tr>
+      <tr><td style="color:var(--loss)"><b>Loss</b></td><td>prédiction + anti-collapse (VICReg) + auto-prédiction masquée</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:4px">Le vecteur d'action <code>aₜ</code></h3>
+    <p>Ce qui décrit l'intervalle entre deux mesures (<span class="mono">ActionVectorizer</span>) :</p>
+    <ul class="clean">
+      <li><b>dt</b> — temps écoulé (jours, standardisé) → <span class="muted">numérique</span></li>
+      <li><b>country, cohort, milk</b> → <span class="muted">one-hot</span></li>
+    </ul>
+    <div class="note"><b>FiLM</b> = l'action module l'état : <code>h = z·(1+scale) + shift</code>, où <code>scale, shift</code> sont calculés depuis <code>aₜ</code>. Le predictor renvoie <code>z + Δ</code> (résiduel) — bon biais pour des communautés qui évoluent lentement.</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:4px">Les 3 termes de loss (pourquoi chacun ?)</h3>
+  <table>
+    <tr><th>Terme</th><th>Formule</th><th>Pourquoi</th></tr>
+    <tr><td><b>Prédiction</b></td><td><code>smooth_l1(ẑ, sg(z̄))</code></td><td>Le cœur : « prédis le latent du futur »</td></tr>
+    <tr><td><b>VICReg</b></td><td>variance + covariance</td><td>Anti-<b>collapse</b> : empêche que tous les <code>z</code> deviennent identiques</td></tr>
+    <tr><td><b>Masked-set</b></td><td>encode communauté partielle → prédis la complète</td><td>Garde l'encodeur « ancré » sur « qui va ensemble » quand on le dégèle</td></tr>
+  </table>
+</div>
+
+<!-- ============================================================= -->
+<h2 id="train"><span class="n">5</span>L'entraînement en 2 phases</h2>
+<p class="lead">Données : transitions longitudinales <code>(état_t → état_t₊₁)</code> par sujet DIABIMMUNE. Split <b>par sujet</b> (zéro fuite). Fichier <span class="mono">scripts/jepa/train_jepa.py</span>.</p>
+
+<div class="grid2">
+  <div class="card" style="border-color:var(--enc)">
+    <div class="tag" style="color:var(--enc)">Phase 2 — encodeur GELÉ</div>
+    <p class="big">🔒 + 🧠</p>
+    <p>On entraîne <b>seulement le predictor</b> sur <code>(zₜ, aₜ) → zₜ₊₁</code>. Rapide, robuste, donne déjà un world model qui marche.</p>
+    <p class="muted">LR predictor = 3e-4 · ~60 epochs</p>
+  </div>
+  <div class="card" style="border-color:var(--pred)">
+    <div class="tag" style="color:var(--pred)">Phase 3 — encodeur DÉGELÉ</div>
+    <p class="big">🔓 + 🧠</p>
+    <p>Co-entraînement encodeur + predictor avec <b>prédiction + VICReg + masked-set</b>. L'espace latent devient à la fois « cohérent » et « prévisible sous dynamique ».</p>
+    <p class="muted">LR encodeur = 1e-5 (petit !) · ~40 epochs</p>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:4px">La métrique clé : <code>skill</code></h3>
+  <p>À chaque epoch on compare la prédiction du modèle à une <b>baseline « rien ne change »</b> (<code>identity</code> : on suppose <code>zₜ₊₁ = zₜ</code>) :</p>
+  <pre>skill = val_identity / val_pred</pre>
+  <p><b><code>skill &gt; 1</code></b> ⇒ le modèle bat le « copier-coller de l'état actuel » : il a vraiment appris une <b>dynamique</b>. C'est ça qu'on veut voir grimper.</p>
+  <div class="note">Détails GPU : embeddings OTU pré-calculés une fois (le hot-loop ne touche jamais le HDF5), AMP (mixed precision), grad clipping, cap <code>max_set=256</code> OTUs/communauté (l'attention est O(L²), et sous-échantillonner = augmentation gratuite vu l'invariance par permutation).</p>
+</div>
+
+<pre><span class="c"># Lancer l'entraînement (GPU)</span>
+python scripts/jepa/train_jepa.py --device cuda --amp \
+    --phase2-epochs 60 --phase3-epochs 40 --batch-size 256
+<span class="c"># → sauve le meilleur modèle dans data/model/microbiome_jepa.pt</span></pre>
+
+<!-- ============================================================= -->
+<h2 id="demo"><span class="n">6</span>La démo : forecast → what-if → plan</h2>
+<p class="lead">Un « simulateur de vol » du microbiote intestinal. Fichiers <span class="mono">scripts/jepa/plan_demo.py</span> (figure) et <span class="mono">app.py</span> (Streamlit interactif).</p>
+
+<div class="grid3">
+  <div class="card">
+    <div class="tag" style="color:var(--enc)">1 · FORECAST</div>
+    <p>On part de l'intestin d'un bébé jeune et on <b>roule le world model vers le futur</b> dans l'espace latent. On superpose la <b>vraie trajectoire</b> de l'enfant.</p>
+    <p class="muted">« Le modèle prédit comment l'intestin mûrit. »</p>
+  </div>
+  <div class="card">
+    <div class="tag" style="color:var(--pred)">2 · WHAT-IF</div>
+    <p>On re-roule sous différentes <b>actions</b> (ex : lait maternel vs formule) en flippant le one-hot <code>milk</code>.</p>
+    <p class="muted">« Les interventions infléchissent la trajectoire. »</p>
+  </div>
+  <div class="card">
+    <div class="tag" style="color:var(--gold)">3 · PLAN</div>
+    <p>On <b>optimise par gradient</b> la partie actionnable de <code>aₜ</code> pour atteindre une cible <code>z*</code> (= intestin mûr/sain) le plus vite.</p>
+    <p class="muted">« Le modèle prescrit l'intervention. »</p>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:4px">Comment le « plan » marche (en clair)</h3>
+  <div class="flow">
+    <div class="step"><div class="t">z*</div><div class="d">centroïde des états « mûrs » (âge ≥ 730j)</div></div>
+    <div class="arr">→</div>
+    <div class="step"><div class="t">action libre</div><div class="d">seuls dt + lait modifiables ; pays/cohorte figés</div></div>
+    <div class="arr">→</div>
+    <div class="step" style="border-color:var(--pred)"><div class="t">rollout × steps</div><div class="d">on déroule g_φ</div></div>
+    <div class="arr">→</div>
+    <div class="step" style="border-color:var(--loss)"><div class="t">loss = ‖z − z*‖²</div><div class="d">Adam, 300 itérations</div></div>
+    <div class="arr">→</div>
+    <div class="step" style="border-color:var(--gold)"><div class="t">action recommandée</div><div class="d">décode le lait conseillé</div></div>
+  </div>
+  <div class="eli5"><b>L'idée géniale :</b> comme tout est <b>différentiable</b>, on n'essaie pas toutes les interventions à la main — on laisse le <b>gradient</b> trouver l'intervention qui amène l'intestin vers « sain ». Pays et cohorte sont gelés car ce ne sont pas des leviers d'action (on ne change pas le pays d'un bébé).</div>
+</div>
+
+<pre><span class="c"># Figure « wow » (1 image qui raconte tout)</span>
+uv run python scripts/jepa/plan_demo.py --jepa data/model/microbiome_jepa.pt
+<span class="c"># → data/rollout_metropolis/jepa_intervention_plan.png</span>
+
+<span class="c"># Demo interactive (sliders live)</span>
+streamlit run scripts/jepa/app.py -- --jepa data/model/microbiome_jepa.pt</pre>
+
+<!-- ============================================================= -->
+<h2 id="glossaire"><span class="n">7</span>Glossaire express</h2>
+<div class="card">
+<table>
+  <tr><th>Mot</th><th>Traduction « collègue pressé »</th></tr>
+  <tr><td><b>JEPA</b></td><td>Joint-Embedding Predictive Architecture : on prédit dans l'espace <i>latent</i>, pas dans l'espace des données brutes.</td></tr>
+  <tr><td><b>World model</b></td><td>Un modèle qui sait « si je suis dans cet état et que je fais ça, je finis dans cet état-là ».</td></tr>
+  <tr><td><b>Latent / z</b></td><td>Le résumé vectoriel (100-D) d'une communauté microbienne. C'est l'« état du monde ».</td></tr>
+  <tr><td><b>EMA</b></td><td>Exponential Moving Average : une copie du modèle qui suit lentement, sert de cible stable.</td></tr>
+  <tr><td><b>FiLM</b></td><td>Feature-wise Linear Modulation : l'action « tord » l'état via un scale + shift.</td></tr>
+  <tr><td><b>VICReg</b></td><td>Régularisation qui empêche que toutes les représentations s'effondrent au même point.</td></tr>
+  <tr><td><b>Collapse</b></td><td>Le piège : le modèle triche en mettant tout au même endroit (loss=0 mais inutile).</td></tr>
+  <tr><td><b>stop-grad</b></td><td>On bloque le gradient sur la cible pour que l'élève ne puisse pas « bouger la réponse ».</td></tr>
+  <tr><td><b>Invariance par permutation</b></td><td>L'ordre des bactéries ne compte pas — c'est un ensemble, pas une phrase.</td></tr>
+  <tr><td><b>OTU</b></td><td>≈ une espèce de bactérie (regroupée à 97% de similarité ADN).</td></tr>
+</table>
+</div>
+
+<div class="card" style="border-color:var(--accent)">
+  <h3 style="margin-top:4px">📁 Carte des fichiers</h3>
+  <table>
+    <tr><th>Fichier</th><th>Quoi</th></tr>
+    <tr><td><code>model.py</code></td><td>Le Transformer de base (Susagi)</td></tr>
+    <tr><td><code>scripts/utils.py</code></td><td>Constantes, chemins, chargement (OTU_EMB=384, checkpoint…)</td></tr>
+    <tr><td><code>scripts/jepa/jepa.py</code></td><td>Encoder readout · Predictor (FiLM) · EMA · losses</td></tr>
+    <tr><td><code>scripts/jepa/data.py</code></td><td>Timelines DIABIMMUNE · Transitions · ActionVectorizer</td></tr>
+    <tr><td><code>scripts/jepa/train_jepa.py</code></td><td>Boucle 2-phases, métrique skill, sauvegarde</td></tr>
+    <tr><td><code>scripts/jepa/plan_demo.py</code></td><td>Figure forecast / what-if / plan</td></tr>
+    <tr><td><code>scripts/jepa/app.py</code></td><td>Démo Streamlit interactive</td></tr>
+    <tr><td><code>scripts/rollout/core.py</code></td><td>Résolution OTU→embedding, cache, batching padded</td></tr>
+  </table>
+</div>
+
+<footer>
+  Microbiome-Modelling · Susagi + Microbiome-JEPA — généré pour briefer l'équipe.<br>
+  Données : <span class="mono">doi.org/10.5281/zenodo.18679373</span> · Modèle : <span class="mono">huggingface.co/basilboy/microbiome-model</span>
+</footer>
+
+</div>
+</body>
+</html>
