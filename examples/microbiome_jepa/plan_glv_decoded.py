@@ -216,6 +216,7 @@ def run(
     dec_n_traj: int = 256,
     device: str = "cpu",
     out: str = "examples/microbiome_jepa/results",
+    tag: str = "",
     overrides: Optional[dict] = None,
 ):
     dev = torch.device(device if (device != "cuda" or torch.cuda.is_available()) else "cpu")
@@ -282,7 +283,7 @@ def run(
            "n_episodes": n_episodes, "mpc_steps": mpc_steps, "mppi_cfg": mppi_cfg.__dict__,
            "summary": summary, "records": records}
     Path(out).mkdir(parents=True, exist_ok=True)
-    fn = Path(out) / "planning_decoded.json"
+    fn = Path(out) / (f"planning_decoded{('_' + tag) if tag else ''}.json")
     with open(fn, "w") as f:
         json.dump(res, f, indent=2, default=float)
     print(f"saved -> {fn}")
