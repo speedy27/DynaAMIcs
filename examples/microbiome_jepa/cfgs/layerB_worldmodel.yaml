@@ -1,0 +1,65 @@
+# Layer B — action-conditioned temporal world model on the gLV simulator.
+# THE HEADLINE EXPERIMENT: train with IDM on (idm_coeff>0) vs off (idm_coeff=0) and show that
+# without IDM the JEPA collapses onto slow features (pred->0, var hinge active), and IDM forces it
+# to capture real community dynamics (the collapse-and-recovery story; Sobal et al. analog).
+#
+# Smoke (CPU; fire override syntax is --key value):
+#   .venv-cpu/bin/python -m examples.microbiome_jepa.train_worldmodel \
+#     --fname examples/microbiome_jepa/cfgs/layerB_worldmodel.yaml \
+#     --optim.epochs 2 --data.n_traj 32 --data.batch_size 16
+
+meta:
+  seed: 42
+  device: auto
+
+data:
+  env_name: microbiome
+  task: glv             # routes init_data -> gLV trajectory loader (init_microbiome_traj_data)
+  n_traj: 256           # number of gLV trajectories
+  T: 24                 # env steps per trajectory (=> states aligned to T)
+  n_species: 24         # S == N_max (every species is a token slot)
+  n_candidate: 6        # K == action_dim (curated candidate panel / probiotic formulation)
+  dt: 0.05
+  noise_std: 0.01
+  action_policy: random
+  num_frames: 8         # trajectory window length T_win fed to the model
+  batch_size: 64
+  num_workers: 4
+  seed: 42
+
+model:
+  token_dim: 385        # emb_dim(384) + 1 log-abundance
+  d_model: 256          # encoder output D == predictor hidden_size
+  n_heads: 4
+  n_layers: 4
+  dim_feedforward: 512
+  dropout: 0.0
+  pool: mean
+  nsteps: 7             # autoregressive prediction steps (= num_frames - 1)
+  regularizer:
+    std_coeff: 1.0
+    cov_coeff: 25.0
+    sim_coeff_t: 1.0
+    idm_coeff: 1.0      # *** ABLATION KNOB ***  >0 = IDM on; 0.0 = IDM off (expect collapse)
+    idm_hidden: 256
+    use_proj: true
+    first_t_only: false
+    spatial_as_samples: false
+    idm_after_proj: false
+    sim_t_after_proj: false
+
+optim:
+  epochs: 60
+  lr: 0.001
+  weight_decay: 1.0e-5
+  warmup_ratio: 0.1
+  grad_clip: 1.0
+
+logging:
+  log_wandb: false
+  log_every: 1
+  tqdm_silent: false
+
+training:
+  use_amp: false        # CPU smoke off; GPU: true + bfloat16
+  dtype: bfloat16
