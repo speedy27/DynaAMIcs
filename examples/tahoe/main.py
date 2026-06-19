@@ -23,7 +23,7 @@ import torch
 import torch.nn as nn
 from omegaconf import OmegaConf
 
-from eb_jepa.architectures import Projector
+from eb_jepa.architectures import Projector, SetTransformer
 from eb_jepa.datasets.tahoe.dataset import TahoeConfig, make_loaders
 from eb_jepa.losses import BCS, VICRegLoss, PathwayCoherenceLoss
 from eb_jepa.schedulers import CosineWithWarmup
@@ -81,7 +81,24 @@ def run(fname, overrides):
     print(f"== tahoe-jepa | device={device} | cells train={len(tr)} val={len(va)} | "
           f"genes={K} modules={tr.n_modules} reg={cfg.loss.reg} ==")
 
-    enc = CellEncoder(K, cfg.model.henc, D).to(device)
+    enc_kind = cfg.model.get("encoder", "mlp")
+    if enc_kind == "settransformer":
+        enc = SetTransformer(
+            n_genes=K, out_d=D, d_model=cfg.model.get("d_model", 192),
+            n_latents=cfg.model.get("n_latents", 32), depth=cfg.model.get("depth", 2),
+            heads=cfg.model.get("heads", 4),
+        )
+        # optional: real per-gene source tables (scGPT / KGE / ESM2) aligned to the
+        # gene panel, saved as {name: tensor[K, d]} (torch .pt). Frozen; projection learned.
+        gs = cfg.data.get("gene_sources", "")
+        if gs and os.path.exists(gs):
+            tables = torch.load(gs, weights_only=False)
+            for name, tbl in tables.items():
+                enc.register_gene_source(name, tbl)
+            print(f"  gene-init sources: {list(tables)}")
+        enc = enc.to(device)
+    else:
+        enc = CellEncoder(K, cfg.model.henc, D).to(device)
     proj = Projector(f"{D}-{cfg.model.proj}-{cfg.model.proj}").to(device)
     if cfg.loss.reg == "sigreg":
         reg = BCS(num_slices=cfg.loss.num_slices, lmbd=cfg.loss.lmbd).to(device)

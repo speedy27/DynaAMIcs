@@ -451,6 +451,90 @@ class MultiSourceFusion(nn.Module):
         return self.mlp(torch.cat(parts, dim=-1))
 
 
+class SetTransformer(nn.Module):
+    """Perceiver-style set-transformer cell encoder over a gene panel.
+
+    Every gene of the top-K panel is a TOKEN. A gene's token vector is the FUSION
+    of one or more per-gene source embeddings, additively combined:
+
+        token[b, g] = sum_s  W_s @ source_s[g]          # gene-init (multi-source)
+                    + id_emb(g)                          # always-on learned source
+                    + value_proj( expression[b, g] )     # the cell's own signal
+
+    The "sources" are frozen per-gene tables aligned to the gene panel, e.g.
+    scGPT gene embeddings, a biomedical-KG (KGE) gene vector, ESM2 of the gene's
+    protein. None are required: with no source registered the encoder still runs
+    on the learned gene-id embedding alone (so it trains today; real sources plug
+    in later via `register_gene_source`).
+
+    A small set of learned latents cross-attends to the K gene tokens (Perceiver),
+    then self-attends, and is mean-pooled to the cell latent z. This is O(K * M)
+    rather than O(K^2), so it scales to large panels — the GeneJEPA recipe.
+
+    forward(x): x is [B, K] expression over the panel -> returns [B, out_d].
+    """
+
+    def __init__(self, n_genes, out_d=128, d_model=192, n_latents=32,
+                 depth=2, heads=4, source_dims=None, ffn_mult=2):
+        super().__init__()
+        self.n_genes = n_genes
+        self.d_model = d_model
+        self.id_emb = nn.Embedding(n_genes, d_model)         # always-on learned source
+        self.value_proj = nn.Linear(1, d_model)              # per-gene expression -> token
+        self.src_proj = nn.ModuleDict()                      # filled by register_gene_source
+        if source_dims:
+            for name, d in source_dims.items():
+                self.src_proj[name] = nn.Linear(d, d_model)
+        self.latents = nn.Parameter(torch.randn(n_latents, d_model) * 0.02)
+        self.cross = nn.MultiheadAttention(d_model, heads, batch_first=True)
+        self.cross_ln_q = nn.LayerNorm(d_model)
+        self.cross_ln_kv = nn.LayerNorm(d_model)
+        self.self_blocks = nn.ModuleList([
+            nn.ModuleDict({
+                "ln1": nn.LayerNorm(d_model),
+                "attn": nn.MultiheadAttention(d_model, heads, batch_first=True),
+                "ln2": nn.LayerNorm(d_model),
+                "ffn": nn.Sequential(nn.Linear(d_model, d_model * ffn_mult), nn.GELU(),
+                                     nn.Linear(d_model * ffn_mult, d_model)),
+            }) for _ in range(depth)
+        ])
+        self.head = nn.Sequential(nn.LayerNorm(d_model), nn.Linear(d_model, out_d))
+        self.out_dim = out_d
+        self.apply(init_module_weights)
+
+    def register_gene_source(self, name, table):
+        """Attach a frozen per-gene embedding table [n_genes, d] (scGPT/KGE/ESM2).
+        Adds a trainable projection but keeps the table itself frozen."""
+        table = torch.as_tensor(table, dtype=torch.float32)
+        assert table.shape[0] == self.n_genes, f"{name}: {table.shape[0]} != {self.n_genes} genes"
+        self.register_buffer(f"src_{name}", table, persistent=True)
+        self.src_proj[name] = nn.Linear(table.shape[1], self.d_model)
+        init_module_weights(self.src_proj[name])
+
+    def _gene_base(self, device):
+        """Per-gene token base = learned id + sum of frozen-source projections. [K, d]"""
+        idx = torch.arange(self.n_genes, device=device)
+        base = self.id_emb(idx)
+        for name, proj in self.src_proj.items():
+            table = getattr(self, f"src_{name}").to(device)
+            base = base + proj(table)
+        return base
+
+    def forward(self, x):
+        B = x.shape[0]
+        base = self._gene_base(x.device)                          # [K, d]
+        tok = base[None] + self.value_proj(x[..., None])          # [B, K, d]
+        tok = self.cross_ln_kv(tok)
+        q = self.cross_ln_q(self.latents)[None].expand(B, -1, -1)  # [B, M, d]
+        z, _ = self.cross(q, tok, tok)                            # [B, M, d]
+        for blk in self.self_blocks:
+            h = blk["ln1"](z)
+            a, _ = blk["attn"](h, h, h)
+            z = z + a
+            z = z + blk["ffn"](blk["ln2"](z))
+        return self.head(z.mean(dim=1))                           # [B, out_d]
+
+
 class SetEncoder(TemporalBatchMixin, nn.Module):
     """Permutation-invariant, abundance-weighted DeepSets encoder for microbiome
     communities (or any set of token embeddings with per-token weights).
