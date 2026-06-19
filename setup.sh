@@ -46,7 +46,7 @@ Go there and work from it:
     cd $TARGET
 
 Then it is fully set up — \`source env.sh\` (already added to ~/.bashrc) and, to verify,
-\`sbatch slurm_test.sh\`.
+\`sbatch --reservation=Vivatech slurm_test.sh\`.
 EOF
     echo ">>> Original clone cleaned — only a pointer README.md remains at $EBJEPA_ORIG_CLONE"
 fi
@@ -99,7 +99,7 @@ if [[ "$ARCH" == "x86_64" ]]; then
     SETUP_ACCT_FLAG=""
     [ -n "${EBJEPA_SLURM_ACCOUNT:-}" ] && SETUP_ACCT_FLAG="--account=$EBJEPA_SLURM_ACCOUNT"
     SYNC_JOB=$(sbatch \
-        --partition=defq $SETUP_ACCT_FLAG \
+        --partition=defq $SETUP_ACCT_FLAG --reservation=Vivatech \
         --nodes=1 --ntasks=1 --cpus-per-task=4 \
         --time=0:30:0 --job-name=eb_jepa_setup \
         --output="$WORK/logs/setup_${COMPUTE_ARCH}_%j.out" \
