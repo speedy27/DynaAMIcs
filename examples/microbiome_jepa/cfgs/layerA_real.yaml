@@ -1,0 +1,48 @@
+# Layer A pretraining on the REAL MicrobeAtlas corpus (two-view VICReg) — M2.
+# data.data_dir is set at launch (--data.data_dir $EBJEPA_DSETS/susagi/data). With data_dir set and
+# synthetic=false, init_microbiome_data takes the real corpus path; synth_n_samples caps how many
+# corpus communities are streamed (reused as the real max_samples). d_model=128 matches the probe.
+meta:
+  seed: 42
+  device: auto
+data:
+  env_name: microbiome
+  task: otu
+  synthetic: false
+  data_dir:                 # set at launch: $EBJEPA_DSETS/susagi/data
+  mode: two_view
+  n_max: 256
+  emb_dim: 384
+  synth_n_samples: 20000    # corpus cap (real samples streamed for pretraining)
+  batch_size: 256
+  num_workers: 8
+  subsample_frac: 0.8
+  jitter_std: 0.1
+  dropout_p: 0.1
+model:
+  token_dim: 385
+  d_model: 128
+  n_heads: 4
+  n_layers: 4
+  dim_feedforward: 512
+  dropout: 0.0
+  pool: mean
+  use_projector: true
+loss:
+  type: vicreg
+  std_coeff: 1.0
+  cov_coeff: 25.0
+  lmbd: 10.0
+optim:
+  epochs: 30
+  lr: 0.001
+  weight_decay: 1.0e-5
+  warmup_ratio: 0.1
+logging:
+  log_wandb: false
+  log_every: 1
+  save_every_n_epochs: 5
+  tqdm_silent: false
+training:
+  use_amp: true
+  dtype: bfloat16
