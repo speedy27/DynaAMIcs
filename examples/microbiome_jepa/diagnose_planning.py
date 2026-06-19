@@ -121,22 +121,27 @@ def run(
     print(f"[DIAG1 oracle/true-dynamics MPPI] success={oracle['success_rate']:.3f} "
           f"final_dist={oracle['mean_final_dist']:.3f} (start {oracle['mean_start_dist']:.3f}, tol {tol:.3f})")
 
-    # ---- DIAG 2: LATENT-COST ALIGNMENT ----
-    lat_d, true_d = [], []
+    # ---- DIAG 2: LATENT-COST ALIGNMENT (+ encoder feat_std, the geometry gate) ----
+    lat_d, true_d, zs_all = [], [], []
     for (src, tgt) in pairs:
         target = attractors[tgt]
         z_tgt = state_enc.encode(jepa, target).flatten(1)  # [1,D]
         x = sim.reset(attractor=src).astype(np.float32)
         for _ in range(mpc_steps):
             z = state_enc.encode(jepa, x).flatten(1)        # [1,D]
+            zs_all.append(z[0])
             lat_d.append(float(torch.linalg.norm(z - z_tgt)))
             true_d.append(float(np.linalg.norm(x - target)))
             a = rng.uniform(0.0, action_max, size=K).astype(np.float32)  # random walk to span states
             x = sim.step(a).astype(np.float32)
     lat_d, true_d = np.array(lat_d), np.array(true_d)
     pear = float(pearsonr(lat_d, true_d)[0]); spear = float(spearmanr(lat_d, true_d)[0])
-    align = {"pearson": pear, "spearman": spear, "n_points": int(len(lat_d))}
-    print(f"[DIAG2 latent-vs-true distance] pearson={pear:.3f} spearman={spear:.3f} (n={len(lat_d)})")
+    # feat_std = mean per-dim std of the ENCODER latent across visited states (-> ~1 if isotropic Gaussian,
+    # -> ~0 if collapsed/squished). The VICReg world model squished it (~0.01); SIGReg should keep it ~1.
+    feat_std = float(torch.stack(zs_all).std(dim=0).mean())
+    align = {"pearson": pear, "spearman": spear, "n_points": int(len(lat_d)), "feat_std": feat_std}
+    print(f"[DIAG2 latent-vs-true distance] pearson={pear:.3f} spearman={spear:.3f} "
+          f"feat_std={feat_std:.4f} (n={len(lat_d)})")
 
     # ---- DIAG 3: WORLD-MODEL ROLLOUT ACCURACY (latent space) ----
     H = mpc_steps
