@@ -419,6 +419,70 @@ class PhyloDispersionLoss(nn.Module):
         return F.mse_loss(dz, dp)
 
 
+class TemporalVarianceLoss(nn.Module):
+    """Anti-collapse on the TIME axis (microbiome-specific fix).
+
+    VICReg/VC keep per-feature variance across the BATCH but allow a single
+    trajectory to be CONSTANT in time -- the encoder then just encodes subject
+    identity and the world model becomes vacuous (tvar -> 0, skill < 1). This
+    hinge forces each trajectory's latent to vary over time by at least `margin`
+    std per dimension, so genuine community dynamics must be represented.
+
+    forward(state):  state [B, D, T, 1, 1] -> scalar
+    """
+
+    def __init__(self, margin: float = 1.0):
+        super().__init__()
+        self.margin = margin
+
+    def forward(self, state):
+        z = state[..., 0, 0]  # [B, D, T]
+        if z.shape[2] < 2:
+            return z.new_zeros(())
+        std_t = torch.sqrt(z.var(dim=2) + 1e-4)  # [B, D] std over time per trajectory
+        return torch.mean(F.relu(self.margin - std_t))
+
+
+class PathwayCoherenceLoss(nn.Module):
+    """Gene-PROGRAM structural prior for the cell-state JEPA (our differentiator
+    vs GeneJEPA, which has no such term).
+
+    Cells whose co-expression *modules* (pathways/programs) are active in similar
+    proportions should be close in latent space: we match the (scale-normalized)
+    pairwise cosine-distance matrix of the latents to that of a per-cell
+    pathway-activity descriptor (mean expression per co-expression module). This
+    injects coordinated gene-program structure into the embedding, rather than
+    letting it organize by incidental/batch features.
+
+    forward(z, pathway):
+        z:       [B, D]  cell latents
+        pathway: [B, M]  per-cell module-activity descriptor
+    """
+
+    def __init__(self, detach_target=True, max_samples=512):
+        super().__init__()
+        self.detach_target = detach_target
+        self.max_samples = max_samples
+
+    @staticmethod
+    def _pdist(x):
+        x = F.normalize(x, dim=-1)
+        return 1.0 - (x @ x.t())
+
+    def forward(self, z, pathway):
+        m = z.shape[0]
+        if m > self.max_samples:
+            idx = torch.randperm(m, device=z.device)[: self.max_samples]
+            z, pathway = z[idx], pathway[idx]
+        dz = self._pdist(z)
+        dp = self._pdist(pathway)
+        if self.detach_target:
+            dp = dp.detach()
+        dz = dz / (dz.mean() + 1e-6)
+        dp = dp / (dp.mean() + 1e-6)
+        return F.mse_loss(dz, dp)
+
+
 ######################################################
 # BCS (Batched Characteristic Slicing) loss for SIGReg
 

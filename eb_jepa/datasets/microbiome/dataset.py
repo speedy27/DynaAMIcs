@@ -32,6 +32,9 @@ class MicrobiomeConfig:
     cache_path: str = "eb_jepa/datasets/microbiome/cache.pt"
     n_window: int = 6          # T timepoints per training window
     stride: int = 1
+    tp_stride: int = 1         # gap (#timepoints) between window steps; >1 => larger Δt
+                               # transitions (consecutive gut samples barely change, so the
+                               # no-change baseline is unbeatable; larger Δt makes prediction real)
     n_max: int = 64            # OTU slots per community (top-abundance kept)
     emb_dim: int = 384
     abundance_scale: float = 1.0e4
@@ -66,14 +69,16 @@ class MicrobiomeDataset(Dataset):
         keep = val if config.split == "val" else (set(names) - val)
         self.subjects = [s for s in self.subjects if s["subject"] in keep]
 
-        # window index over (subject, start)
+        # window index over (subject, start); a window spans `span` raw timepoints
+        # but samples every tp_stride-th one -> n_window steps with larger Δt gaps.
         self.windows = []
-        T = config.n_window
+        T, ts = config.n_window, max(1, config.tp_stride)
+        span = (T - 1) * ts + 1
         for si, s in enumerate(self.subjects):
             n = len(s["timepoints"])
-            if n < T:
+            if n < span:
                 continue
-            for start in range(0, n - T + 1, config.stride):
+            for start in range(0, n - span + 1, config.stride):
                 self.windows.append((si, start))
 
     def __len__(self):
@@ -91,7 +96,8 @@ class MicrobiomeDataset(Dataset):
         cfg = self.cfg
         si, start = self.windows[i]
         s = self.subjects[si]
-        tps = s["timepoints"][start : start + cfg.n_window]
+        ts = max(1, cfg.tp_stride)
+        tps = s["timepoints"][start : start + (cfg.n_window - 1) * ts + 1 : ts]
         T, N, E = cfg.n_window, cfg.n_max, cfg.emb_dim
 
         obs = torch.zeros(E + 1, T, N, 1, dtype=torch.float32)

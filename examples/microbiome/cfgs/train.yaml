@@ -5,6 +5,8 @@ meta:
 data:
   cache_path: eb_jepa/datasets/microbiome/cache.pt
   n_window: 6          # T timepoints per window
+  tp_stride: 3         # gap between window steps -> larger Δt transitions (LEVER 2:
+                       #   makes prediction non-trivial; consecutive samples barely change)
   n_max: 64            # OTU slots per community (top-abundance kept)
   val_fraction: 0.2
   batch_size: 64
@@ -25,11 +27,14 @@ loss:
   idm_coeff: 1.0       # inverse-dynamics (keeps latent action-relevant)
   div_coeff: 1.0       # AlphaDiversityLoss   (microbiome-specific, option 2)
   phylo_coeff: 1.0     # PhyloDispersionLoss  (soft-UniFrac, option 3)
+  tvar_coeff: 1.0      # TemporalVarianceLoss (LEVER 1: anti temporal-collapse)
+  tvar_margin: 1.0     # min per-dim std along time within a trajectory
 
 optim:
   epochs: 50
   lr: 1.0e-3
   weight_decay: 1.0e-4
+  probe_every: 5       # run the (expensive) age/T1D probe every N epochs only
 
 logging:
   log_wandb: false
