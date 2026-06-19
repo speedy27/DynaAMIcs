@@ -228,5 +228,6 @@ checkpoints/
 eb_jepa_ICLR/
 arxiv/
 arxiv_tmp/
-CLAUDE.md
 setup.md
+claude.md 
+ORCHESTRATOR_KICKOFF.md
