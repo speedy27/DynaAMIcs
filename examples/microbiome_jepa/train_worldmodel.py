@@ -193,6 +193,7 @@ def run(
         jepa.train()
         t0 = time.time()
         agg = {}
+        last_obs = None
         pbar = tqdm(loader, desc=f"[{tag}] Epoch {epoch}/{cfg.optim.epochs - 1}",
                     disable=cfg.logging.get("tqdm_silent", False))
         for batch in pbar:
@@ -218,16 +219,17 @@ def run(
             scaler.update()
             scheduler.step()
 
-            fstd = feature_collapse_std(jepa, obs)
             row = {"total": loss.item(), "pred": pl.item() if torch.is_tensor(pl) else float(pl),
-                   "reg": regl.item(), "feat_std": fstd, **regldict}
+                   "reg": regl.item(), **regldict}
             for k, v in row.items():
                 agg[k] = agg.get(k, 0.0) + (v.item() if torch.is_tensor(v) else float(v))
+            last_obs = obs  # for the once-per-epoch collapse diagnostic (avoid a per-step extra encode)
             pbar.set_postfix({"tot": f"{loss.item():.3f}", "pred": f"{row['pred']:.4f}",
-                              "std_l": f"{regldict.get('std_loss', 0):.3f}", "fstd": f"{fstd:.3f}"})
+                              "std_l": f"{regldict.get('std_loss', 0):.3f}"})
 
         nb = max(1, len(loader))
         metrics = {k: v / nb for k, v in agg.items()}
+        metrics["feat_std"] = feature_collapse_std(jepa, last_obs) if last_obs is not None else 0.0
         logger.info(f"[{tag}] epoch {epoch}: " + " ".join(f"{k}={v:.4f}" for k, v in metrics.items()))
         if wandb_run and epoch % cfg.logging.get("log_every", 1) == 0:
             wandb.log({"epoch": epoch, "epoch_time": time.time() - t0, "idm_coeff": idm_coeff,

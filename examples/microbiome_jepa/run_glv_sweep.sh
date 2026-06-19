@@ -22,9 +22,10 @@ PY="$UV_PROJECT_ENVIRONMENT/bin/python"
 echo "== node $(hostname) arch $(uname -m) =="
 $PY -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NO-GPU')"
 
-EP=${EP:-150}; NT=${NT:-512}; EV=${EV:-128}; SEEDS=${SEEDS:-0}
+# Shrunk for fast iteration (launch-overhead-bound: tiny model on GB200). d_model 128, 60 ep, 256 traj.
+EP=${EP:-60}; NT=${NT:-256}; EV=${EV:-96}; SEEDS=${SEEDS:-0}; DM=${DM:-128}
 OUT=$WORK/checkpoints/microbiome_jepa
-RA="$PY -m examples.microbiome_jepa.run_ablation --seeds $SEEDS --epochs $EP --n_traj $NT --eval_n_traj $EV --use_amp False"
+RA="$PY -m examples.microbiome_jepa.run_ablation --seeds $SEEDS --epochs $EP --n_traj $NT --eval_n_traj $EV --d_model $DM --use_amp False"
 
 echo "############ SWEEP A: default (sim=1, cov=25, std=1) ############"
 $RA --out $OUT/sweep_A
