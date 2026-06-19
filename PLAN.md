@@ -123,6 +123,13 @@ by Layer A and Layer B (built once, in WS2).
   * M1 Layer A CPU smoke (SYNTHETIC data, 2 epochs, tiny): loss 1.41->1.29, invariance 0.138->0.079,
     cov_loss ~0.005-0.01, feat_std ~0.91 STABLE (no collapse). This validates the PIPELINE only — it
     is NOT a scientific result (synthetic data, 2 epochs). Real-data training + seeds are M2.
+  * M4 HEADLINE — IDM ablation, gLV, GPU job 74610, 3 seeds, 80 epochs (eval_collapse standardized probe):
+    - Induce-collapse regime (sim=4,cov=1,std=0.25): fast_r2_action IDM-on 0.748±0.051 vs off 0.520±0.021
+      (Δ+0.229, on>off in ALL 3 seeds, non-overlapping); Δstate +0.082; slow saturated ~0.99 both.
+    - Default regime (sim=1,cov=25,std=1): fast_r2_action 0.364±0.020 vs 0.291±0.041 (Δ+0.073, 2/3 seeds,
+      1 reversed) — modest, seed-noisy; NOT overclaimed. Figures in examples/microbiome_jepa/results/.
+    - Finding = regime-dependence: strong VICReg partially substitutes for IDM; in the collapse-prone
+      regime IDM robustly rescues the intervention/dynamics signal.
 - UNVERIFIED: WS1 real-data loader path (the 22GB corpus is cluster-only; verify on cluster before M2).
   Susagi baseline numbers (infants/IBS) quoted from their result files — re-verify provenance in WS4
   before claiming "beat the baseline".

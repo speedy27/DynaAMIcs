@@ -42,18 +42,36 @@ latents — forces the encoder to retain the fast/intervention information. This
   one-step state change; `fast_r2_state` = decode the current state; `slow_r2_init` = decode the
   trajectory's initial state (a slow feature). `eval_collapse.py`.
 
-## Result — IDM ablation (collapse-and-recovery)
-Regime-finding sweep (1 seed, GPU job 74554) located the effect; the headline is the **3-seed
-confirmation** with the standardized probe (job 74595), two regularizer regimes:
+## Result — IDM ablation (collapse-and-recovery) — MEASURED (job 74610; 3 seeds; 80 epochs; d_model=128)
+Frozen-encoder linear probes (Ridge, trajectory-split, floored-standardized) on held-out gLV
+trajectories. Two regularizer regimes.
 
-<!-- FILL FROM job 74595: checkpoints/microbiome_jepa/final_{default,collapse}/ablation_results.json -->
-**[PENDING — 3-seed mean ± s.e. to be inserted here on job completion.]**
+**Induce-collapse regime** (weak variance-reg: sim=4, cov=1, std=0.25 — the Sobal-style setting). This
+is the headline. Figure: [results/ablation_collapse.png](results/ablation_collapse.png).
 
-Preliminary direction (1-seed sweep, pre-standardization probe — superseded by the 3-seed numbers
-above): in the default VICReg regime, IDM raised intervention-decodability `fast_r2_action` from
-0.128 → 0.241 (~2×) while leaving generic state-decodability flat and *reducing* slow-feature reliance
-(`slow_r2_init` 0.539 → 0.500) — i.e. without IDM the world model discarded the intervention and leaned
-on slow identity; IDM recovered it. Figure: `final_default/ablation_collapse_recovery.png`.
+| probe (R², held-out)            | IDM on        | IDM off       | Δ      |
+|---------------------------------|---------------|---------------|--------|
+| fast: **action** (intervention) | 0.748 ± 0.051 | 0.520 ± 0.021 | **+0.229** |
+| fast: Δstate (dynamics)         | 0.819 ± 0.023 | 0.736 ± 0.012 | +0.082 |
+| fast: state                     | 0.974 ± 0.003 | 0.963 ± 0.002 | +0.011 |
+| slow: init (identity)           | 0.993 ± 0.001 | 0.989 ± 0.003 | +0.005 |
+
+IDM on > off on intervention-decodability in **all 3 seeds** (+0.254 / +0.297 / +0.133), error bars
+non-overlapping. Without IDM the community representation discards ~30% of the recoverable intervention
+signal (0.52 vs 0.75); IDM forces it to retain the applied intervention. Slow identity is saturated
+(~0.99) for both arms, so IDM specifically rescues the FAST (intervention + dynamics) signal.
+
+**Default regime** (standard VICReg: sim=1, cov=25, std=1).
+Figure: [results/ablation_default.png](results/ablation_default.png).
+fast:action 0.364 ± 0.020 (on) vs 0.291 ± 0.041 (off), **Δ +0.073** (positive in 2/3 seeds; 1 seed
+reversed); Δstate +0.025; state +0.007; slow saturated.
+
+**The result is the regime-dependence itself.** Strong variance/covariance regularization *partially
+substitutes* for IDM (small, seed-noisy gap); in a collapse-prone regime the JEPA genuinely collapses
+onto slow features and drops the intervention, and IDM robustly recovers it. That is exactly the
+"collapse we fought," and it isolates *what the IDM term does and when it matters*. (Honest: we do
+**not** overclaim the default regime — its effect is modest and one seed reverses; the figure keeps
+the error bars.)
 
 ## What we learned about JEPAs (the collapse we fought)
 - A predict-in-latent objective on temporal data really does drift toward slow features: the

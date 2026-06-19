@@ -1,0 +1,163 @@
+{
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "epochs": 80,
+  "n_traj": 256,
+  "eval_n_traj": 128,
+  "config_overrides": {
+    "model.regularizer.sim_coeff_t": 4,
+    "model.regularizer.cov_coeff": 1,
+    "model.regularizer.std_coeff": 0.25,
+    "model.d_model": 128,
+    "training.use_amp": false
+  },
+  "records": [
+    {
+      "seed": 0,
+      "arm": "idm_on",
+      "idm_coeff": 1.0,
+      "train_pred": 7.266725986512744e-05,
+      "train_std_loss": 0.003499504800916451,
+      "train_idm_loss": 0.011311552380440666,
+      "used_stub_glv": false,
+      "fast_r2_action": 0.7332132458686829,
+      "fast_r2_delta": 0.8270595073699951,
+      "fast_r2_state": 0.9757633209228516,
+      "slow_r2_init": 0.9931221008300781,
+      "fast_minus_slow": -0.166062593460083,
+      "feat_std": 0.010447822511196136
+    },
+    {
+      "seed": 0,
+      "arm": "idm_off",
+      "idm_coeff": 0.0,
+      "train_pred": 5.034240840344507e-05,
+      "train_std_loss": 0.00386651242571715,
+      "train_idm_loss": 0.0,
+      "used_stub_glv": false,
+      "fast_r2_action": 0.4787421226501465,
+      "fast_r2_delta": 0.713126003742218,
+      "fast_r2_state": 0.9604200720787048,
+      "slow_r2_init": 0.9900078773498535,
+      "fast_minus_slow": -0.2768818736076355,
+      "feat_std": 0.0074631827883422375
+    },
+    {
+      "seed": 1,
+      "arm": "idm_on",
+      "idm_coeff": 1.0,
+      "train_pred": 9.060098353551976e-05,
+      "train_std_loss": 0.003895683456441296,
+      "train_idm_loss": 0.010045645789044802,
+      "used_stub_glv": false,
+      "fast_r2_action": 0.8434581160545349,
+      "fast_r2_delta": 0.8527193069458008,
+      "fast_r2_state": 0.977756917476654,
+      "slow_r2_init": 0.99223393201828,
+      "fast_minus_slow": -0.13951462507247925,
+      "feat_std": 0.011846071109175682
+    },
+    {
+      "seed": 1,
+      "arm": "idm_off",
+      "idm_coeff": 0.0,
+      "train_pred": 4.945063656272336e-05,
+      "train_std_loss": 0.004100427710924481,
+      "train_idm_loss": 0.0,
+      "used_stub_glv": false,
+      "fast_r2_action": 0.5455799102783203,
+      "fast_r2_delta": 0.7534247040748596,
+      "fast_r2_state": 0.9606711268424988,
+      "slow_r2_init": 0.9837732911109924,
+      "fast_minus_slow": -0.2303485870361328,
+      "feat_std": 0.0075258249416947365
+    },
+    {
+      "seed": 2,
+      "arm": "idm_on",
+      "idm_coeff": 1.0,
+      "train_pred": 6.889401003241264e-05,
+      "train_std_loss": 0.0036167388049061183,
+      "train_idm_loss": 0.015248051676593844,
+      "used_stub_glv": false,
+      "fast_r2_action": 0.6680881977081299,
+      "fast_r2_delta": 0.7758384346961975,
+      "fast_r2_state": 0.9671666026115417,
+      "slow_r2_init": 0.9949566721916199,
+      "fast_minus_slow": -0.21911823749542236,
+      "feat_std": 0.009918533265590668
+    },
+    {
+      "seed": 2,
+      "arm": "idm_off",
+      "idm_coeff": 0.0,
+      "train_pred": 4.531195986973977e-05,
+      "train_std_loss": 0.0036268187324195855,
+      "train_idm_loss": 0.0,
+      "used_stub_glv": false,
+      "fast_r2_action": 0.5347310900688171,
+      "fast_r2_delta": 0.7421358227729797,
+      "fast_r2_state": 0.9668512344360352,
+      "slow_r2_init": 0.9927636981010437,
+      "fast_minus_slow": -0.25062787532806396,
+      "feat_std": 0.007161295972764492
+    }
+  ],
+  "summary": {
+    "idm_on": {
+      "fast_r2_action": [
+        0.7482531865437826,
+        0.05118040616889463
+      ],
+      "fast_r2_delta": [
+        0.8185390830039978,
+        0.022598785756447665
+      ],
+      "fast_r2_state": [
+        0.9735622803370158,
+        0.0032492115444071904
+      ],
+      "slow_r2_init": [
+        0.9934375683466593,
+        0.0008016583495881336
+      ],
+      "fast_minus_slow": [
+        -0.17489848534266153,
+        0.023400416782014797
+      ],
+      "feat_std": [
+        0.010737475628654162,
+        0.0005749709357735561
+      ]
+    },
+    "idm_off": {
+      "fast_r2_action": [
+        0.519684374332428,
+        0.02070929907550384
+      ],
+      "fast_r2_delta": [
+        0.7362288435300192,
+        0.012002299987330036
+      ],
+      "fast_r2_state": [
+        0.9626474777857462,
+        0.002103127401810775
+      ],
+      "slow_r2_init": [
+        0.9888482888539633,
+        0.0026592817684192808
+      ],
+      "fast_minus_slow": [
+        -0.2526194453239441,
+        0.013469860839082757
+      ],
+      "feat_std": [
+        0.007383434567600489,
+        0.00011253173823554966
+      ]
+    }
+  }
+}
