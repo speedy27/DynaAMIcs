@@ -95,7 +95,9 @@ $\quad\downarrow$ energy vs real $z_{\text{pert}}$
 % ---------------- 6. CONTRIBUTIONS / LOSSES ----------------
 \begin{frame}{Our contribution --- three biology-aware loss terms}
 \small
-\begin{tcolorbox}[colback=secondary!6,colframe=primary,title={1. SIGReg (anti-collapse; our choice vs GeneJEPA VICReg)}]
+\textit{Two tracks:} \hl{(A) representation} (trainable encoder) = SIGReg + Pathway;
+\hl{(B) world model} (\textbf{frozen} encoder $\Rightarrow$ no collapse, no anti-collapse term) = PerturbationSignature + Pathway.\\[3pt]
+\begin{tcolorbox}[colback=secondary!6,colframe=primary,title={1. SIGReg (anti-collapse; track A; our choice vs GeneJEPA VICReg)}]
 Forces the latent batch to be \hl{isotropic Gaussian} (Epps--Pulley statistic on random 1-D
 projections). One hyper-parameter, linear cost, more stable than VICReg's two coefficients.
 \end{tcolorbox}
@@ -107,6 +109,14 @@ $\mathcal{L}_{\text{path}}=\lVert \widetilde{D}_{\text{latent}} - \widetilde{D}_
 Predicted shift $\hat z_{\text{pert}}-z_{\text{ctrl}}$ should point the \hl{same direction for the same drug}
 (a compound has a characteristic signature) --- supervised-contrastive on shift directions.
 \end{tcolorbox}
+\end{frame}
+
+% ---------------- 6b. COLLAPSE ABLATION ----------------
+\begin{frame}{The collapse we fought --- SIGReg keeps the encoder alive}
+\centering\includegraphics[height=0.62\textheight]{collapse.png}\\
+{\footnotesize Same cell JEPA on PBMC3k, \hl{with vs without} the anti-collapse term.
+Without it the embedding \hl{std $\to 0.002$} (collapse), effective rank $\to 1$, and the
+cell-type probe drops to \hl{0.43} ($\approx$ chance). With SIGReg: \hl{std $\approx 1.1$, probe $0.94$}.}
 \end{frame}
 
 % ---------------- 7. HEADLINE RESULT ----------------
