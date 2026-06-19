@@ -1,7 +1,8 @@
 # EB-JEPA for the Microbiome: an action-conditioned world model with intervention planning
 
-**Status:** draft. Headline numbers are filled from the 3-seed run (job 74595, in progress); every
-number here is labelled MEASURED / PRELIMINARY / PENDING. No fabricated values.
+**Status:** the IDM-ablation headline and the planning result are MEASURED and final (jobs 74610,
+74718); the real-data Layer A probe is running. Every number is labelled MEASURED / PENDING — no
+fabricated values, and the reversing seed is kept in the figures.
 
 ## Thesis (what is new)
 Static masked-set JEPAs for omics already exist (GeneJepa, Cell-JEPA, JEPA-DNA) — so we do **not**
@@ -124,4 +125,6 @@ We report this as-is; the headline (IDM ablation) stands independently of planni
 - The set-transformer uses CLR log-abundance + a (for gLV) fixed random "species embedding"; real-data
   runs use ProkBERT embeddings.
 - 3-seed (not large-N) error bars; we report mean ± s.e. and the seeds.
-- Downstream real-data probe + planning are in progress at time of writing.
+- Planning is complete (an honest negative, above); the real-data Layer A downstream probe is running
+  at time of writing (the corpus-pretrained encoder is required — the synthetic-smoke encoder is not a
+  valid probe).
