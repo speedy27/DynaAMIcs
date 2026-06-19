@@ -34,8 +34,10 @@ class TahoeDataset(Dataset):
         self.cfg = cfg
         blob = torch.load(cfg.cache_path, weights_only=False)
         X = blob["X"].float()                      # [N, K]
-        # log1p on the non-negative part (counts-like), then per-gene z-score
-        X = torch.log1p(torch.clamp(X, min=0.0))
+        # gene counts -> log1p; pretrained embeddings are already real-valued -> keep as is.
+        if not blob.get("is_embedding", False):
+            X = torch.log1p(torch.clamp(X, min=0.0))
+        # then per-feature z-score (mandatory for the regularizer)
         if stats is None:
             mu = X.mean(0, keepdim=True); sd = X.std(0, keepdim=True) + 1e-6
             self.mu, self.sd = mu, sd

@@ -483,6 +483,29 @@ class PathwayCoherenceLoss(nn.Module):
         return F.mse_loss(dz, dp)
 
 
+class PerturbationSignatureLoss(nn.Module):
+    """Biology prior for the action-conditioned cell world model.
+
+    A compound induces a characteristic transcriptomic *signature*: the PREDICTED
+    perturbation shift (z_pert_hat - z_ctrl) should point in a consistent direction
+    for cells treated with the SAME drug, and differ across drugs. This pushes the
+    action-conditioned predictor to capture drug-specific biology rather than
+    cell-specific noise (a supervised-contrastive loss on shift *directions*).
+
+    forward(shift, drug_ids):
+        shift:    [B, D]  predicted z_pert - z_ctrl
+        drug_ids: [B]     drug label per example
+    """
+
+    def forward(self, shift, drug_ids):
+        shift = F.normalize(shift, dim=-1)
+        sim = shift @ shift.t()  # [B, B] cosine of shift directions
+        same = (drug_ids[:, None] == drug_ids[None, :]).float()
+        same = same - torch.eye(len(shift), device=shift.device)  # drop self-pairs
+        denom = same.sum().clamp_min(1.0)
+        return ((1.0 - sim) * same).sum() / denom  # pull same-drug shifts together
+
+
 ######################################################
 # BCS (Batched Characteristic Slicing) loss for SIGReg
 
