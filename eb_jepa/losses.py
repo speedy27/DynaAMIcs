@@ -399,3 +399,69 @@ class BCS(nn.Module):
         invariance_loss = F.mse_loss(z1, z2).mean()
         total_loss = invariance_loss + self.lmbd * bcs
         return {"loss": total_loss, "bcs_loss": bcs, "invariance_loss": invariance_loss}
+
+
+class ImposterRepulsionLoss(nn.Module):
+    """Imposter-repulsion regularizer (Susagi's idea, carried into the JEPA).
+
+    Susagi (the-puzzler/Microbiome-Modelling) trains an *imposter discriminator*:
+    "does this OTU belong in the community?". We reframe that as a metric-learning
+    term on the JEPA's masked-prediction outputs. In masked-prediction mode the
+    encoder/predictor produces a representation for a masked-out REAL OTU; we want
+    that prediction to be:
+      - CLOSE to the representation of the true (real) OTU, and
+      - FAR from the representation of a hard IMPOSTER OTU (an OTU that is close in
+        DNA-embedding space but is not actually in the community).
+    This is a margin / triplet hinge. The imposter SAMPLING (which OTU is a hard
+    negative) lives in the data workstream; this module is just the loss term, so
+    the builder can add it as a gated, logged sub-loss.
+
+    Args:
+        margin (float): triplet margin m. Loss is relu(d_pos - d_neg + m).
+        distance (str): "l2" (squared Euclidean) or "cosine" (1 - cosine similarity).
+        reduction (str): "mean", "sum", or "none".
+    """
+
+    def __init__(
+        self,
+        margin: float = 1.0,
+        distance: str = "l2",
+        reduction: str = "mean",
+    ):
+        super().__init__()
+        if distance not in ("l2", "cosine"):
+            raise ValueError(f"distance must be 'l2' or 'cosine', got {distance!r}")
+        if reduction not in ("mean", "sum", "none"):
+            raise ValueError(
+                f"reduction must be 'mean', 'sum', or 'none', got {reduction!r}"
+            )
+        self.margin = margin
+        self.distance = distance
+        self.reduction = reduction
+
+    def _dist(self, a, b):
+        if self.distance == "l2":
+            # Squared Euclidean distance per row.
+            return (a - b).pow(2).sum(dim=-1)
+        # Cosine distance in [0, 2]: 1 - cos_sim.
+        return 1.0 - F.cosine_similarity(a, b, dim=-1, eps=1e-8)
+
+    def forward(self, pred_rep, real_rep, imposter_rep):
+        """Triplet hinge pulling pred->real and pushing pred away from imposter.
+
+        Args:
+            pred_rep:     [N, D] predicted representation of the masked OTU.
+            real_rep:     [N, D] representation of the true (real) OTU (positive).
+            imposter_rep: [N, D] representation of a hard imposter OTU (negative).
+        Returns:
+            Scalar loss (or [N] if reduction='none').
+        """
+        d_pos = self._dist(pred_rep, real_rep)  # want small
+        d_neg = self._dist(pred_rep, imposter_rep)  # want large
+        losses = F.relu(d_pos - d_neg + self.margin)  # [N]
+
+        if self.reduction == "mean":
+            return losses.mean()
+        if self.reduction == "sum":
+            return losses.sum()
+        return losses

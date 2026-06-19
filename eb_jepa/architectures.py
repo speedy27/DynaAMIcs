@@ -454,6 +454,180 @@ class RNNPredictor(nn.Module):
         return next_state[0].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
 
 
+class SetTransformerEncoder(nn.Module):
+    """Permutation-invariant set-transformer encoder over OTU tokens.
+
+    Microbiome encoder f_theta for the EB-JEPA world model. Consumes a *set* of
+    OTU tokens per timepoint (order does not matter, padded slots are ignored)
+    and produces ONE community vector per timepoint. There is NO positional
+    encoding, so the function is permutation invariant over the OTU dimension by
+    construction.
+
+    OBS / TOKEN CONTRACT (shared with the data workstream):
+        obs is a dict:
+          - obs["otu"]:  FloatTensor [B, T, N_max, F]  (features, F = token_dim)
+          - obs["mask"]: BoolTensor  [B, T, N_max]     (True = real OTU, False = pad)
+        Features are assumed to arrive already CLR'd + per-dim z-scored.
+
+    Output:
+        Tensor [B, D, T, 1, 1] where D == self.mlp_output_dim. This matches the
+        ImpalaEncoder output convention (H'=W'=1), so the predictor, the
+        VC_IDM_Sim_Regularizer ([B,C,T,H,W]), and the planning machinery all work
+        unchanged. The builder reads self.mlp_output_dim to set the predictor's
+        hidden_size = D, and may read self.final_ln (exposed below).
+
+    Args:
+        token_dim (int): per-OTU feature dimension F (default 385 = 384 ProkBERT + 1 CLR).
+        d_model (int): transformer working width.
+        n_heads (int): attention heads.
+        n_layers (int): number of TransformerEncoder layers.
+        dim_feedforward (int): FFN width inside each transformer layer.
+        dropout (float): dropout inside the transformer (use 0.0 for deterministic
+            permutation/mask-invariance checks).
+        pool (str): "mean" for masked mean pooling, or "attention" for a learned
+            attention (PMA-style) pool. Both are permutation invariant.
+        mlp_output_dim (Optional[int]): if given, a final Linear projects the pooled
+            d_model vector to this size and D = mlp_output_dim; otherwise D = d_model.
+        final_ln (bool): apply a LayerNorm to the output community vector.
+    """
+
+    def __init__(
+        self,
+        token_dim: int = 385,
+        d_model: int = 256,
+        n_heads: int = 4,
+        n_layers: int = 4,
+        dim_feedforward: int = 512,
+        dropout: float = 0.0,
+        pool: str = "mean",
+        mlp_output_dim: Optional[int] = None,
+        final_ln: bool = True,
+    ):
+        super().__init__()
+        if pool not in ("mean", "attention"):
+            raise ValueError(f"pool must be 'mean' or 'attention', got {pool!r}")
+
+        self.token_dim = token_dim
+        self.d_model = d_model
+        self.pool = pool
+
+        # Token embedding: F -> d_model (no positional encoding on purpose).
+        self.input_proj = nn.Linear(token_dim, d_model)
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model,
+            nhead=n_heads,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            activation="gelu",
+            batch_first=True,
+            norm_first=True,
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+
+        # Learned attention pooling (PMA with a single seed vector). Permutation
+        # invariant: scores depend only on per-token content, and the softmax +
+        # weighted sum is order independent.
+        if pool == "attention":
+            self.pool_query = nn.Parameter(torch.zeros(1, 1, d_model))
+            nn.init.trunc_normal_(self.pool_query, std=0.02)
+            self.pool_attn = nn.MultiheadAttention(
+                embed_dim=d_model,
+                num_heads=n_heads,
+                dropout=dropout,
+                batch_first=True,
+            )
+
+        # Optional final projection so the builder can pick the embedding dim D.
+        if mlp_output_dim is not None and mlp_output_dim != d_model:
+            self.output_proj = nn.Linear(d_model, mlp_output_dim)
+            out_dim = mlp_output_dim
+        else:
+            self.output_proj = nn.Identity()
+            out_dim = d_model
+
+        # D = encoder output dim; the builder reads this to size the predictor.
+        self.mlp_output_dim = out_dim
+
+        if final_ln:
+            self.final_ln = nn.LayerNorm(out_dim)
+        else:
+            self.final_ln = nn.Identity()
+
+        # Match the codebase init convention (truncated-normal Linear weights).
+        self.apply(init_module_weights)
+
+    def forward_set(self, tokens, mask):
+        """Encode a batch of OTU sets into community vectors.
+
+        Args:
+            tokens: [B*, N_max, F] OTU features.
+            mask:   [B*, N_max] bool, True = real OTU, False = pad.
+        Returns:
+            [B*, D] community vectors (D == self.mlp_output_dim).
+        """
+        # Guard against padded slots leaking into the network through the input
+        # projection bias / attention: zero out features in padded positions so
+        # the output is invariant to whatever junk sits in pad slots.
+        keep = mask.unsqueeze(-1).to(tokens.dtype)  # [B*, N_max, 1]
+        tokens = tokens * keep
+
+        h = self.input_proj(tokens)  # [B*, N_max, d_model]
+
+        # src_key_padding_mask: True marks positions to IGNORE -> pass ~mask.
+        pad_mask = ~mask  # [B*, N_max]
+        h = self.transformer(h, src_key_padding_mask=pad_mask)  # [B*, N_max, d_model]
+
+        if self.pool == "mean":
+            # Masked mean over real OTUs only (permutation invariant). Clamp the
+            # denominator so a community with >=1 real OTU never divides by zero;
+            # the contract guarantees at least one real OTU per row.
+            keep = mask.unsqueeze(-1).to(h.dtype)  # [B*, N_max, 1]
+            h = h * keep
+            denom = keep.sum(dim=1).clamp(min=1.0)  # [B*, 1]
+            pooled = h.sum(dim=1) / denom  # [B*, d_model]
+        else:  # attention pooling (PMA, single learned query)
+            bstar = h.shape[0]
+            q = self.pool_query.expand(bstar, -1, -1)  # [B*, 1, d_model]
+            pooled, _ = self.pool_attn(
+                q, h, h, key_padding_mask=pad_mask, need_weights=False
+            )
+            pooled = pooled.squeeze(1)  # [B*, d_model]
+
+        pooled = self.output_proj(pooled)  # [B*, D]
+        pooled = self.final_ln(pooled)
+        return pooled
+
+    def forward(self, obs):
+        """Encode a microbiome trajectory to the EB-JEPA state convention.
+
+        Args:
+            obs: dict with
+                "otu":  FloatTensor [B, T, N_max, F]
+                "mask": BoolTensor  [B, T, N_max] (True = real OTU)
+        Returns:
+            Tensor [B, D, T, 1, 1].
+        """
+        otu = obs["otu"]
+        mask = obs["mask"]
+
+        b, t, n_max, f = otu.shape
+
+        # Fold T into the batch so the set-transformer just sees [B*T, N_max, F],
+        # mirroring how TemporalBatchMixin folds time for the conv encoders.
+        tokens = otu.reshape(b * t, n_max, f)
+        mask_flat = mask.reshape(b * t, n_max)
+
+        pooled = self.forward_set(tokens, mask_flat)  # [B*T, D]
+        d = pooled.shape[-1]
+
+        # [B*T, D] -> [B, T, D] -> [B, D, T] -> [B, D, T, 1, 1]
+        pooled = pooled.reshape(b, t, d)
+        out = pooled.permute(0, 2, 1).contiguous()  # [B, D, T]
+        out = out.unsqueeze(-1).unsqueeze(-1)  # [B, D, T, 1, 1]
+        return out
+
+
 class InverseDynamicsModel(nn.Module):
     """
     Predicts the action that caused a transition from state_t to state_t_plus_1.

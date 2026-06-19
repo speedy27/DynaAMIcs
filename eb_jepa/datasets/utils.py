@@ -228,6 +228,14 @@ def init_data(env_name, cfg_data=None, device=None, **kwargs):
         Tuple of ``(train_loader, val_loader, config, pipeline_manager)``.
         ``pipeline_manager`` is None for ``online`` and ``offline`` modes.
     """
+    # ---- microbiome modality (WS1) ----
+    # New modality with its own dict-obs contract; handled entirely by its own
+    # init function. Early return so it never touches the two_rooms/maze paths.
+    if env_name == "microbiome":
+        from eb_jepa.datasets.microbiome.otu_data import init_microbiome_data
+
+        return init_microbiome_data(cfg_data, device)
+
     DatasetClass, ConfigClass, NormalizerCls = _resolve_env(env_name)
 
     merged_cfg = load_env_data_config(env_name, cfg_data)
