@@ -24,6 +24,8 @@ import numpy as np
 import torch
 from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 
 @torch.no_grad()
@@ -46,7 +48,10 @@ def encode_trajectories(encoder, dataset, device, max_traj=None):
 
 
 def _ridge_r2(X_tr, y_tr, X_te, y_te, alpha=1.0):
-    model = Ridge(alpha=alpha)
+    # Standardize X per-dim: the encoder output can be tiny-magnitude (LayerNorm + collapse),
+    # which would let a fixed Ridge alpha over-regularize and suppress R^2. StandardScaler (fit on
+    # train only) makes alpha well-scaled and the absolute R^2 meaningful + comparable across arms.
+    model = make_pipeline(StandardScaler(), Ridge(alpha=alpha))
     model.fit(X_tr, y_tr)
     return float(r2_score(y_te, model.predict(X_te), multioutput="uniform_average"))
 
