@@ -165,26 +165,30 @@ controllability nor the dynamics model is the bottleneck; the planning COST (lat
 **4. The lever — DECODED-state planning** (`plan_glv_decoded.py`; figure
 [results/planning_diagnosis.png](results/planning_diagnosis.png)). Keep the same frozen world model but
 score MPPI by a linear/MLP state READOUT z→x̂ (the encoder retains state) instead of raw latent distance.
-Planning then improves MONOTONICALLY with readout fidelity:
+The planner then gets MONOTONICALLY CLOSER to the target as readout fidelity rises (3 seeds, 12
+episodes/seed; seeded decoder for reproducibility):
 
-| K=24 world model      | state-readout R² (MLP) | decoded-MPPI success | decoded-MPPI final dist (tol 1.0) |
-|-----------------------|------------------------|----------------------|-----------------------------------|
-| default reg (cov=25)  | 0.77                   | 0.0%                 | ~4.0 (≈ random)                   |
-| weak reg (cov=1)      | 0.89                   | **2.8%** (first >0)  | **2.78** (best of any method)     |
+| K=24 world model      | state-readout R² (MLP) | decoded-MPPI success | decoded-MPPI final / best dist (tol 1.0) |
+|-----------------------|------------------------|----------------------|------------------------------------------|
+| default reg (cov=25)  | 0.78                   | 0%                   | 4.12 / 3.74  (≈ random 3.99)             |
+| weak reg (cov=1)      | 0.89                   | 0%                   | **3.01 / 2.58**  (best final of any method) |
 
-The weak-reg encoder (state more linearly decodable; rollout ~0.8% faithful) lifts decoded planning to
-the first non-zero success and the best final distance of any method. *(A higher-capacity weak-reg model,
-d256/512-traj, is training to test whether this closes the loop further — `run_glv_k24_big.sh`, pending.)*
+The weak-reg encoder (state more linearly decodable; rollout ~0.8% faithful) makes decoded-MPPI the
+**best-final-distance method** (3.01 / best 2.58 vs random 3.99, greedy 3.26, latent-MPPI 4.49) — i.e.
+higher readout fidelity moves the planner closer — but **no learned planner crosses tol=1.0 (all 0%)**:
+the loop is NOT closed at the achieved fidelity (R² ≤ 0.89). *(A higher-capacity weak-reg model,
+d256/512-traj, is training to add a third fidelity point — `run_glv_k24_big.sh`, pending.)*
 
-**Conclusion — a diagnosed, partially-closed negative.** The negative decomposes into a clean causal
+**Conclusion — a fully diagnosed (still-open) negative.** The negative decomposes into a clean causal
 chain, each link MEASURED: (i) **controllability** — fixed by enlarging the candidate panel to K=24
 (oracle 0%→100%); (ii) the learned **dynamics are faithful** (~1–2% rollout divergence) and NOT the
 bottleneck; (iii) the residual bottleneck is the encoder's **representation geometry** — raw latent
-distance is an uninformative planning cost (corr ≈ 0), and a state-aligned (decoded) cost recovers
-planning *in proportion to the readout fidelity* (R² 0.77→0.89 ⇒ success 0%→2.8%). This pinpoints WHY
-latent-space planning is hard for a VICReg JEPA — the representation is faithful for one-step prediction
-yet not a metric space for multi-step planning — and demonstrates the lever that improves it. The
-rubric-honest outcome: not an unexplained 0%, but a layered diagnosis with a demonstrated partial fix.
+distance is an uninformative planning cost (corr ≈ 0), and a state-aligned (decoded) cost moves the
+planner closer *in proportion to the readout fidelity* (R² 0.78→0.89 ⇒ final 4.12→3.01), but not yet to
+sub-tol success. This pinpoints WHY latent-space planning is hard for a VICReg JEPA — the representation
+is faithful for one-step prediction yet not a metric space for multi-step planning — and identifies the
+lever (readout fidelity). The rubric-honest outcome: not an unexplained 0%, but a layered diagnosis that
+isolates the bottleneck to the representation and shows what moves the needle.
 
 ## Reproducibility
 - One command (GPU): `cd $WORK/eb_jepa && sbatch examples/microbiome_jepa/run_glv_final.sh`

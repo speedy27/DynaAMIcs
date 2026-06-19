@@ -104,7 +104,8 @@ def fit_decoders(jepa, state_enc, sim, n_traj=256, T=24, seed=123, device=None, 
                          .reshape(-1).astype(np.float32)).to(dev)                    # [S]
     out["linear"] = ((lambda zs: zs @ W.T + b), r2_lin)
 
-    # ---- mlp (1 hidden layer), trained with Adam on standardized z ----
+    # ---- mlp (1 hidden layer), trained with Adam on standardized z (seeded for reproducibility) ----
+    torch.manual_seed(0)
     Zt = torch.from_numpy((Z - mu) / sd).float().to(dev)
     Xt = torch.from_numpy(X).float().to(dev)
     Ztr, Xtr = Zt[tr], Xt[tr]

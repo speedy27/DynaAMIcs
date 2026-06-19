@@ -80,8 +80,9 @@ Note: fire override syntax is `--key value` (bare `key=value` binds to the posit
 3. Planning (the big bet): a fully DIAGNOSED, partially-closed negative. The oracle controllability
    curve ([results/oracle_K_sweep.png](results/oracle_K_sweep.png)) shows the task is solvable only at
    K=24; the learned planner then fails because raw latent distance is an uninformative cost (corr≈0)
-   while the dynamics are faithful (~2%); a state-aligned DECODED cost recovers planning *in proportion
-   to readout fidelity* (R² 0.77→0.89 ⇒ success 0%→2.8%; [results/planning_diagnosis.png](results/planning_diagnosis.png)).
+   while the dynamics are faithful (~2%); a state-aligned DECODED cost moves the planner closer *in
+   proportion to readout fidelity* (R² 0.78→0.89 ⇒ final dist 4.12→3.01, the best of any method, though
+   still 0% at tol=1.0; [results/planning_diagnosis.png](results/planning_diagnosis.png)).
    Pinpoints exactly where the JEPA rep helps and where it doesn't.
 4. Real data + invariance: a frozen corpus-pretrained encoder + linear probe **ties a supervised MLP on
    AUC** (infant-env, 0.896 vs 0.890); sequencing-tech invariance is an honest NEGATIVE (the rep faithfully
