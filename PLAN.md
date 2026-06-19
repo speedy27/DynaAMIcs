@@ -1,18 +1,24 @@
 # PLAN.md — EB-JEPA Microbiome World Model
 
 Living source of truth for orchestration. Read CLAUDE.md first (strategy, contracts, integrity rules).
-Last updated: 2026-06-19 by orchestrator (initial plan).
+Last updated: 2026-06-19 by orchestrator (after Layer A + Layer B harness built & CPU-green).
 
 ## Status at a glance
-- **Orientation: DONE.** Code contracts verified against the real repo (see CLAUDE.md "Repo reality
-  check"). Susagi parts bin mapped (`/Users/bnz/Microbiome-Modelling`).
-- **Local smoke env: DONE.** `.venv-cpu` (CPU torch 2.12.1) works; `tests/` 16/16 passed on it.
-- **Cluster: BLOCKED on user authorization.** Dalia work dir is empty; clone+setup.sh (builds the two
-  arch venvs) and any job submission write to a shared allocation, so they need explicit go-ahead.
-  Reservation `Vivatech` expires **2026-06-21T00:00 (~2 days)** — this is the binding time constraint.
-- **Data: NOT downloaded.** Susagi data lives on Zenodo (DOI 10.5281/zenodo.18679373) + HF
-  (basilboy/microbiome-model). Cluster has egress (github/zenodo/hf all 200). Download is a cluster op
-  (same authorization).
+- **Build phase: DONE & CPU-green, committed/pushed to `bnz`.**
+  - Layer A static set-JEPA (`examples/microbiome_jepa/main.py`, commit ef608b3): two-view VICReg/BCS,
+    runs end-to-end, no collapse (feat_std ~0.91). SYNTHETIC CPU smoke — not a science result yet.
+  - Layer B AC world model (`examples/microbiome_jepa/train_worldmodel.py`, commit cd75b67): IDM-ablation
+    harness (idm_coeff on/off), both arms run end-to-end on CPU. NOT a result: under-trained smoke shows
+    pred~0.001/feat_std~0.04 in BOTH arms — distinguishing them needs real training + a collapse metric.
+  - WS5 gLV (`glv.py`): 3 stable attractors, non-monotonicity demonstrated (greedy fails 6/6).
+- **Cluster: FULLY OPERATIONAL.** Both arch venvs built (h5py 3.16 + pandas 3.0 confirmed in the aarch64
+  venv); 22 GB data downloaded+verified; GPU pytest 21/21. Repo on cluster at ef608b3 — **needs `git pull`
+  to cd75b67 before Layer B GPU runs.** Reservation `Vivatech` expires **2026-06-21T00:00**.
+- **NEXT (science phase):** (M4) build a collapse metric (dynamics vs slow-feature decodability probe),
+  tune so idm-on vs idm-off diverges, then 3-seed GPU ablation = the headline figure. (M2) real-data
+  Layer A probe vs Susagi MLP baseline.
+- Gotcha logged: verify cluster venv imports with `uv run python` / the venv python (on a compute node),
+  NOT bare `python` — job 74382 "FAILED" was only that false-negative check.
 
 ## The binding constraints (design around these)
 1. ~2 days of GPU. Optimize for ONE clean rubric-maximizing result, not breadth. The headline is the
@@ -77,6 +83,24 @@ by Layer A and Layer B (built once, in WS2).
    still build + CPU-smoke all Layer A/B logic, but cannot produce GPU results or 3-seed numbers.
 2. **Data scope:** OK to defer the 19 GB corpus (gLV-first plan above), or do you want real-data
    pretraining at scale?
+
+## Lit-review course-corrections (2026-06-19, from verified references)
+- NOVELTY (report/slides framing, no code change): static masked-set JEPA for omics already exists
+  (GeneJepa/Cell-JEPA/JEPA-DNA; GeneJepa self-calls "world model"). DO NOT claim "first JEPA for
+  biology"; lead with the ACTION-CONDITIONED TEMPORAL world model + INTERVENTION PLANNING (our white
+  space). Encoder = enabling substrate, not headline. See CLAUDE.md thesis pt 4.
+- NEW EVAL METRIC (M2, real data, cheap + cited): sequencing-technology-invariance probe. Train a
+  classifier to predict sequencing tech (HiSeq/MiSeq, from Susagi sample metadata
+  data/microbeatlas/sample_terms_mapping...biome_tech) from (a) our JEPA community rep vs (b) the
+  Susagi imposter rep; LOWER accuracy = better (rep carries less technical nuisance). Cell-JEPA's core
+  argument; Susagi's own rollouts show tech separation. Sibling to the gLV fast/slow collapse probe.
+- CONTINGENCY LEVERS (only if needed; don't switch mid-experiment):
+  * If VICReg/VC_IDM tuning is fiddly in the ablation -> eb_jepa ships BCS (SIGReg), single hyperparam;
+    LeWM shows pred + Gaussian-isotropy alone is stable. (BCS is two-view, Layer A; for Layer B the
+    sequence reg is VC_IDM — keep unless std/cov tuning blocks us.)
+  * If the real-data Layer A probe underperforms vs Susagi MLP -> add Fourier features on the CLR
+    abundance concatenated to the ProkBERT token (GeneJepa tokenizer trick). Else skip.
+- Forecasting baselines to position against (temporal/planning): gLV/cLV, pNODE, MicroProphet (all real).
 
 ## Known integration TODOs (discovered during build)
 - **pyproject.toml lacks `h5py` and `pandas`** — WS1's real-data loader needs both. Add them and

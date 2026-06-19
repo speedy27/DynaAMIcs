@@ -80,9 +80,13 @@ def run(
     fname: str = "examples/microbiome_jepa/cfgs/layerB_worldmodel.yaml",
     cfg=None,
     folder=None,
+    return_model: bool = False,
     **overrides,
 ):
-    """Train the action-conditioned gLV world model (IDM ablation via model.regularizer.idm_coeff)."""
+    """Train the action-conditioned gLV world model (IDM ablation via model.regularizer.idm_coeff).
+
+    Returns ``metrics`` (dict), or ``(metrics, jepa)`` when ``return_model=True`` (used by run_ablation).
+    """
     if cfg is None:
         cfg = load_config(fname, overrides if overrides else None)
 
@@ -235,7 +239,7 @@ def run(
     if wandb_run:
         wandb.finish()
     logger.info(f"[{tag}] done. final metrics: {metrics}")
-    return metrics
+    return (metrics, jepa) if return_model else metrics
 
 
 if __name__ == "__main__":
