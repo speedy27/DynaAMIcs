@@ -303,6 +303,80 @@ class VC_IDM_Sim_Regularizer(torch.nn.Module):
         return total_weighted_loss, total_unweighted_loss, loss_dict
 
 
+class SIGReg_IDM_Sim_Regularizer(torch.nn.Module):
+    """SIGReg (LeJEPA) anti-collapse for the world model, replacing VICReg's std+cov.
+
+    Instead of VICReg's per-dim variance hinge + off-diagonal covariance penalty, this pushes the latent
+    distribution toward an ISOTROPIC STANDARD GAUSSIAN via the Epps-Pulley characteristic-function test
+    on random 1-D slices (the same statistic eb_jepa's BCS uses, here single-view on one batch of
+    latents). Motivation (the M3 hypothesis): an isotropic-Gaussian latent should make EUCLIDEAN DISTANCE
+    in latent space meaningful, which VICReg's latent was not (planning latent-cost corr ≈ 0). We apply it
+    to the ENCODER output (use no projector) so it shapes the exact space the planner measures distance in.
+    Temporal-similarity + IDM terms are kept identical to VC_IDM_Sim_Regularizer.
+
+    forward(x[B,C,T,H,W], actions[B,A,T]) -> (weighted_loss, unweighted_loss, loss_dict)  (same contract).
+    """
+
+    def __init__(
+        self,
+        sigreg_coeff: float,
+        sim_coeff_t: float,
+        idm_coeff: float = 0.0,
+        idm: nn.Module = None,
+        num_slices: int = 256,
+        first_t_only: bool = False,
+    ):
+        super().__init__()
+        self.sigreg_coeff = sigreg_coeff
+        self.sim_coeff_t = sim_coeff_t
+        self.idm_coeff = idm_coeff
+        self.num_slices = num_slices
+        self.first_t_only = first_t_only
+        self.step = 0
+        self.sim_loss_fn = TemporalSimilarityLoss()
+        self.idm_loss_fn = InverseDynamicsLoss(idm) if idm is not None else None
+
+    def _sigreg(self, z):
+        """z [N, D] -> mean Epps-Pulley isotropy statistic over `num_slices` random unit projections."""
+        with torch.no_grad():
+            g = torch.Generator(device=z.device)
+            g.manual_seed(self.step)
+            A = torch.randn(z.size(1), self.num_slices, device=z.device, generator=g)
+            A = A / (A.norm(p=2, dim=0, keepdim=True) + 1e-8)
+        self.step += 1
+        return epps_pulley(z @ A).mean()
+
+    def forward(self, x, actions=None):
+        b, c, t, h, w = x.shape
+        x_unprojected = x.permute(2, 0, 1, 3, 4).reshape(t, b, -1)  # [T, B, C*H*W]
+
+        sim_loss_t = self.sim_loss_fn(x_unprojected)
+
+        idm_loss = torch.tensor(0.0, device=x.device)
+        if self.idm_coeff > 0 and self.idm_loss_fn is not None and actions is not None:
+            idm_loss = self.idm_loss_fn(x_unprojected, actions)
+
+        # SIGReg on the ENCODER output (no projector). [B*T*H*W, C] (all-t) or [B*H*W, C] (first-t).
+        if self.first_t_only:
+            z = x[:, :, 0].permute(0, 2, 3, 1).reshape(-1, c)
+        else:
+            z = x.permute(0, 2, 3, 4, 1).reshape(-1, c)
+        sigreg_loss = self._sigreg(z)
+
+        total_weighted_loss = (
+            self.sigreg_coeff * sigreg_loss
+            + self.sim_coeff_t * sim_loss_t
+            + self.idm_coeff * idm_loss
+        )
+        total_unweighted_loss = sigreg_loss + sim_loss_t + idm_loss
+        loss_dict = {
+            "sigreg_loss": sigreg_loss.item(),
+            "sim_loss_t": sim_loss_t.item(),
+            "idm_loss": idm_loss if isinstance(idm_loss, float) else idm_loss.item(),
+        }
+        return total_weighted_loss, total_unweighted_loss, loss_dict
+
+
 class VICRegLoss(nn.Module):
     """VICReg loss combining invariance, variance (std), and covariance terms."""
 

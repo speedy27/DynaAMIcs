@@ -46,7 +46,7 @@ from eb_jepa.architectures import (
 from eb_jepa.datasets.utils import init_data
 from eb_jepa.jepa import JEPA
 from eb_jepa.logging import get_logger
-from eb_jepa.losses import SquareLossSeq, VC_IDM_Sim_Regularizer
+from eb_jepa.losses import SIGReg_IDM_Sim_Regularizer, SquareLossSeq, VC_IDM_Sim_Regularizer
 from eb_jepa.schedulers import CosineWithWarmup
 from eb_jepa.training_utils import (
     get_default_dev_name,
@@ -144,23 +144,40 @@ def run(
     D = getattr(encoder, "mlp_output_dim", cfg.model.d_model)
     predictor = RNNPredictor(hidden_size=D, action_dim=K, final_ln=encoder.final_ln)
     aencoder = nn.Identity()
-    projector = Projector(f"{D}-{D * 4}-{D * 4}") if rcfg.get("use_proj", True) else None
-    idm_state_dim = (projector.out_dim if (projector is not None and rcfg.get("idm_after_proj", False)) else D)
-    idm = InverseDynamicsModel(
-        state_dim=idm_state_dim, hidden_dim=int(rcfg.get("idm_hidden", 256)), action_dim=K
-    ).to(device)
-    regularizer = VC_IDM_Sim_Regularizer(
-        cov_coeff=rcfg.cov_coeff,
-        std_coeff=rcfg.std_coeff,
-        sim_coeff_t=rcfg.sim_coeff_t,
-        idm_coeff=idm_coeff,
-        idm=idm,
-        first_t_only=rcfg.get("first_t_only", False),
-        projector=projector,
-        spatial_as_samples=rcfg.get("spatial_as_samples", False),
-        idm_after_proj=rcfg.get("idm_after_proj", False),
-        sim_t_after_proj=rcfg.get("sim_t_after_proj", False),
-    )
+    reg_type = str(rcfg.get("type", "vicreg")).lower()
+
+    if reg_type == "sigreg":
+        # SIGReg (LeJEPA) anti-collapse on the ENCODER output (no projector), so it shapes the exact
+        # latent space the planner measures distance in (the M3 geometry hypothesis).
+        idm = InverseDynamicsModel(
+            state_dim=D, hidden_dim=int(rcfg.get("idm_hidden", 256)), action_dim=K
+        ).to(device)
+        regularizer = SIGReg_IDM_Sim_Regularizer(
+            sigreg_coeff=float(rcfg.get("sigreg_coeff", 1.0)),
+            sim_coeff_t=rcfg.sim_coeff_t,
+            idm_coeff=idm_coeff,
+            idm=idm,
+            num_slices=int(rcfg.get("num_slices", 256)),
+            first_t_only=rcfg.get("first_t_only", False),
+        )
+    else:
+        projector = Projector(f"{D}-{D * 4}-{D * 4}") if rcfg.get("use_proj", True) else None
+        idm_state_dim = (projector.out_dim if (projector is not None and rcfg.get("idm_after_proj", False)) else D)
+        idm = InverseDynamicsModel(
+            state_dim=idm_state_dim, hidden_dim=int(rcfg.get("idm_hidden", 256)), action_dim=K
+        ).to(device)
+        regularizer = VC_IDM_Sim_Regularizer(
+            cov_coeff=rcfg.cov_coeff,
+            std_coeff=rcfg.std_coeff,
+            sim_coeff_t=rcfg.sim_coeff_t,
+            idm_coeff=idm_coeff,
+            idm=idm,
+            first_t_only=rcfg.get("first_t_only", False),
+            projector=projector,
+            spatial_as_samples=rcfg.get("spatial_as_samples", False),
+            idm_after_proj=rcfg.get("idm_after_proj", False),
+            sim_t_after_proj=rcfg.get("sim_t_after_proj", False),
+        )
     ploss = SquareLossSeq()
     jepa = JEPA(encoder, aencoder, predictor, regularizer, ploss).to(device)
 
