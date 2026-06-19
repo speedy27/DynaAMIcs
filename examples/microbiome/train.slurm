@@ -29,6 +29,8 @@ REPO="${EBJEPA_REPO:-$SLURM_SUBMIT_DIR}"
 source "$REPO/env.sh"
 cd "$REPO"   # so the relative cache_path in train.yaml resolves
 
+export PYTHONUNBUFFERED=1   # stream epoch/baseline logs live into the .out file
+
 SEED="${1:-${MICROBIOME_SEED:-0}}"
 EPOCHS="${MICROBIOME_EPOCHS:-50}"
 
