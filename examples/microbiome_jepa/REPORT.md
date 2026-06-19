@@ -92,10 +92,24 @@ tech classifier should do *worse* on our rep than on the Susagi imposter rep). C
 `probe_downstream.py`, `baselines_port.py` (synthetic-smoke green; real-data joins being wired on the
 cluster). **[PENDING real-data numbers.]**
 
-## Planning (Layer B headline application) — PLANNED
-Reuse eb_jepa's `MPPIPlanner` + `ReprTargetDistMPCObjective` (latent-distance to a target community)
-on a gLV env wrapper; success = reaching a target attractor, vs random / greedy / final-state-only
-baselines (the gLV's non-monotonicity is what makes greedy fail). **[PENDING.]**
+## Planning (Layer B application) — MEASURED, honest NEGATIVE (job 74718; 3 seeds; 12 episodes/seed)
+We plan interventions to drive a community to a target attractor via latent-space MPPI (roll the GRU
+predictor forward, minimize L2 to the target latent), in MPC, vs random / greedy (true-state 1-step) /
+final-only-cost baselines. Figure: [results/planning_success_rate.png](results/planning_success_rate.png).
+
+| method | success rate | mean final dist (start 6.64, tol 1.00) |
+|---|---|---|
+| random | 0.000 | 4.58 |
+| greedy | 0.000 | 4.51 |
+| final_only | 0.000 | 4.87 |
+| **mppi (ours)** | **0.000** | **4.88** |
+
+**No method reaches the target (0% all four), and MPPI does NOT beat the baselines.** All methods reduce
+distance 6.64→~4.5. Honest read (causes not yet disentangled — future work): (i) the cost is latent-L2
+while success is measured in TRUE abundance space — if the encoder's latent geometry doesn't align with
+state geometry, minimizing latent distance need not reach the target state; (ii) bounded K=6-taxon panel
+actions may be too weak to cross basins in 20 MPC steps; (iii) rollout error compounds over the horizon.
+We report this as-is; the headline (IDM ablation) stands independently of planning success.
 
 ## Reproducibility
 - One command (GPU): `cd $WORK/eb_jepa && sbatch examples/microbiome_jepa/run_glv_final.sh`

@@ -130,6 +130,10 @@ by Layer A and Layer B (built once, in WS2).
       1 reversed) — modest, seed-noisy; NOT overclaimed. Figures in examples/microbiome_jepa/results/.
     - Finding = regime-dependence: strong VICReg partially substitutes for IDM; in the collapse-prone
       regime IDM robustly rescues the intervention/dynamics signal.
+  * M3 PLANNING — gLV latent-MPPI, GPU job 74718, 3 seeds, 12 ep/seed: HONEST NEGATIVE. 0% success for
+    ALL methods (random/greedy/final_only/mppi) at tol=0.15*attr_scale; MPPI does NOT beat baselines
+    (final dist 4.88 vs random 4.58 / greedy 4.51; start 6.64). Reported as-is; likely latent-vs-state
+    geometry mismatch and/or weak bounded actions. Headline (M4) stands independently.
 - UNVERIFIED: WS1 real-data loader path (the 22GB corpus is cluster-only; verify on cluster before M2).
   Susagi baseline numbers (infants/IBS) quoted from their result files — re-verify provenance in WS4
   before claiming "beat the baseline".

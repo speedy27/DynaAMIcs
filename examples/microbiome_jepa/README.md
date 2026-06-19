@@ -61,6 +61,7 @@ Note: fire override syntax is `--key value` (bare `key=value` binds to the posit
 2. The headline figure ([results/ablation_collapse.png](results/ablation_collapse.png)): without IDM the
    world model forgets the intervention (the Sobal slow-feature collapse); IDM recovers it — a clean
    collapse-and-recovery, 3 seeds, error bars.
-3. Planning: drive a community to a target attractor with optimized interventions vs baselines
-   (`results/planning_*`).
+3. Planning: latent-MPPI to drive a community to a target attractor vs baselines — an honest NEGATIVE
+   (0% success all methods; MPPI doesn't beat random/greedy; `results/planning_*`). Shows where the
+   learned world model is/ isn't good enough — reported as-is.
 4. One paragraph on what we learned about JEPAs (regime-dependence of the IDM term).
