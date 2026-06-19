@@ -85,6 +85,17 @@ the error bars.)
 - The variance/covariance (VICReg) terms keep the representation from *magnitude* collapse but do **not**
   by themselves force it to encode the action — that is specifically the IDM term's job. The two are
   complementary, which the ablation isolates.
+- **A representation can be FAITHFUL for one-step prediction yet NOT a metric space for multi-step
+  planning** (from the planning diagnosis). The world model's latent rollout tracks the true trajectory
+  to ~1–2% and the latent linearly decodes the state — yet *Euclidean distance in that latent is
+  uninformative about task progress* (corr ≈ 0 with true-state distance), so latent-MPPI plans no better
+  than random. Planning only moved toward the target with a state-aligned (decoded) cost, improving in
+  proportion to the readout's fidelity. Lesson: the JEPA objective shapes WHAT is encoded, not the
+  GEOMETRY of the encoding — "good for probing" ≠ "good for planning".
+- Tech-invariance is NOT free (from the tech probe): VICReg with composition-preserving augmentations
+  yields a rep that faithfully keeps the sequencing-protocol signature (amplicon vs WGS) — it is *less*
+  tech-invariant than even the Susagi imposter rep. A JEPA only becomes invariant to a nuisance its
+  augmentations or losses explicitly span.
 - Practical: a tiny set-transformer is launch-overhead-bound on a GB200 (the autoregressive unroll is a
   Python loop of small kernels); shrinking the model + dropping a per-step diagnostic encode mattered
   more than raw GPU FLOPs.
@@ -206,6 +217,9 @@ isolates the bottleneck to the representation and shows what moves the needle.
 - The set-transformer uses CLR log-abundance + a (for gLV) fixed random "species embedding"; real-data
   runs use ProkBERT embeddings.
 - 3-seed (not large-N) error bars; we report mean ± s.e. and the seeds.
-- Planning is complete (an honest negative, above); the real-data Layer A downstream probe is running
-  at time of writing (the corpus-pretrained encoder is required — the synthetic-smoke encoder is not a
-  valid probe).
+- Planning is a fully *diagnosed* negative (above), not a success: the loop is not closed at the achieved
+  representation fidelity (R² ≤ 0.89); the identified path is a more state-decodable / metric latent.
+- The real-data Layer A probe (competitive: AUC tie with a supervised MLP) and the sequencing-tech
+  invariance (an honest *loss* — our rep keeps the protocol signal) are MEASURED. Still running at time
+  of writing: a higher-capacity planning world model (a 3rd readout-fidelity point) and a longer/bigger
+  corpus pretraining (100ep/50k/d256) to re-probe — both clearly labelled PENDING above.
