@@ -66,6 +66,26 @@ def test_phylo_dispersion_loss_scalar():
     assert out.ndim == 0 and out.item() >= 0
 
 
+def test_temporal_variance_loss_penalizes_temporal_collapse():
+    from eb_jepa.losses import TemporalVarianceLoss
+    loss = TemporalVarianceLoss(gamma=1.0)
+    # z_t == z_{t+1} for all t (temporal collapse) -> large hinge penalty
+    flat = torch.randn(B, D, 1, 1, 1).expand(B, D, T, 1, 1).contiguous()
+    # a trajectory that moves a lot over time -> ~zero penalty
+    moving = torch.randn(B, D, T, 1, 1) * 5.0
+    assert loss(flat).item() > loss(moving).item()
+    assert loss(flat).item() >= 0
+
+
+def test_effective_rank_collapse_vs_full():
+    from eb_jepa.losses import effective_rank
+    # rank-1 (collapsed) features -> effective rank ~ 1
+    collapsed = torch.randn(64, 1) @ torch.randn(1, D)
+    full = torch.randn(64, D)  # full-rank random features -> effective rank >> 1
+    assert effective_rank(collapsed) < effective_rank(full)
+    assert effective_rank(full) > 1.0
+
+
 def test_jepa_unroll_end_to_end():
     enc = SetEncoder(emb_dim=E, h_d=32, out_d=D)
     pred = RNNPredictor(hidden_size=D, action_dim=A, final_ln=nn.LayerNorm(D))

@@ -60,6 +60,12 @@ at `eb_jepa/datasets/microbiome/cache.pt`) is read. Rebuilding the cache
 (`precompute.py`) requires the raw data + the sibling Microbiome-Modelling
 loaders, so it is a local/offline step.
 
+**Normalization (honest note):** abundances enter as
+`log1p(scale · relative_abundance)` (compresses the long-tailed counts) and the
+encoder pools tokens by abundance weight. We do **not** yet apply CLR or
+per-dimension z-scoring of the ProkBERT channels — a known lever (VICReg variance
+can be dominated by the single abundance channel) and a cheap ablation worth running.
+
 ---
 
 ## 4. Architecture
@@ -110,7 +116,8 @@ Mapping to the three JEPA components (sujet.pdf §2):
 | Prediction cost | `SquareLossSeq` (latent MSE) | library |
 
 This is the **(c) action-conditioned video-JEPA** setting of the guide, applied
-to microbiome time series.
+to microbiome time series. **Size:** ~0.7 M params total (~0.2 M in the
+`SetEncoder`), printed at startup; no custom CUDA, trains in minutes on one GPU.
 
 ---
 
@@ -122,10 +129,11 @@ to microbiome time series.
                                    + temporal-similarity + inverse-dynamics
    +  λ_d · AlphaDiversityLoss     a head must recover Shannon α-diversity   ◄ bio, option 2
    +  λ_p · PhyloDispersionLoss    latent dist ≈ soft-UniFrac phylo dist      ◄ bio, option 3
+   +  λ_t · TemporalVarianceLoss   per-dim std ALONG TIME ≥ γ                 ◄ the collapse FIX
 ```
 
 The first two lines are the standard eb-JEPA objective (inside `unroll`). The
-last two are **our microbiome-specific terms** (added as auxiliary losses in
+last three are **our microbiome-specific terms** (added as auxiliary losses in
 `main.py`):
 
 - **`AlphaDiversityLoss`** — keeps ecological diversity *decodable* from the
@@ -133,6 +141,11 @@ last two are **our microbiome-specific terms** (added as auxiliary losses in
 - **`PhyloDispersionLoss`** — makes latent geometry respect microbial
   **phylogeny**, using each community's abundance-weighted mean ProkBERT
   embedding as a **tree-free soft-UniFrac** descriptor.
+- **`TemporalVarianceLoss`** — the **collapse fix**: VICReg's variance is measured
+  *across the batch*, which a slow encoder satisfies by storing host identity while
+  letting z_t ≈ z_{t+1}. This applies the same hinge to the std **along the time
+  axis**, forcing each trajectory to move and the predictor to model real dynamics
+  (cf. Sobal et al. 2022, slow-feature collapse).
 
 ---
 
@@ -143,7 +156,8 @@ last two are **our microbiome-specific terms** (added as auxiliary losses in
 | `age_r2` | linear probe predicting host **age** from frozen latents — the "microbiome clock" |
 | `t1d_auroc` | linear probe for **T1D** host phenotype (harder, imbalanced) |
 | `skill_vs_identity` | does the predictor beat the "no-change" baseline in latent space? |
-| `tvar` | temporal variance of the latent — a **collapse monitor** |
+| `tvar` | temporal variance of the latent — a **temporal**-collapse monitor |
+| `effrank` | effective rank of the latent covariance — a **feature**-collapse monitor (dims actually used, not just std) |
 
 Probes are fit on **train** subjects and scored on **val** subjects
 (subject-disjoint, no leakage).
@@ -152,15 +166,21 @@ Probes are fit on **train** subjects and scored on **val** subjects
 
 ## 7. Results so far (honest)
 
-- ✅ **Positive:** the self-supervised representation recovers the **microbiome
-  aging clock** — `age_r2 ≈ 0.50` on held-out subjects (reproduced on GPU GB200).
-- ⚠️ **Finding (negative, clean):** the action-conditioned world model
-  **collapses temporally** (`tvar ≈ 0`, `skill < 1`) — VICReg/IDM keep
-  *feature/batch* variance but **not temporal variance**, so the encoder encodes
-  subject identity while making consecutive timepoints near-identical. More
-  regularization does **not** fix it (confirmed by ablation), which is the point:
-  VICReg's batch variance ≠ temporal variance on slowly-varying biological series.
-- 🔬 **Hard:** T1D probe stays near chance (few positives, subtle signal).
+- ✅ **Positive:** the representation recovers the **microbiome aging clock**
+  (`age_r2 ≈ 0.50` on held-out subjects). `baselines.py` checks this against raw
+  mean-ProkBERT and an **untrained** random encoder — report the three side by side
+  so the gain is attributable to *training*, not just the set-pooling inductive bias.
+- 🔬 **Diagnosed collapse (the insight):** with only VICReg/IDM the
+  action-conditioned model **collapses *temporally*** (`tvar → 0`, `skill ≤ 1`):
+  VICReg keeps *feature/batch* variance (high `effrank`) but **not temporal
+  variance**, so the encoder stores host identity while making consecutive
+  timepoints near-identical — the slow-feature collapse of Sobal et al. (2022).
+- 🛠️ **Collapse fought (the fix):** `TemporalVarianceLoss` applies the VICReg
+  hinge **along time**. The `tvar=0` vs full conditions (`run_ablation.sh` →
+  `aggregate.py`) are the controlled before/after: does the fix lift
+  `skill_vs_identity` above 1 *without* hurting `effrank` / `age_r2`?
+- 🔬 **Hard:** the T1D probe stays near chance (few positives, subtle signal) — an
+  honest negative we keep in the report.
 
 ---
 
@@ -184,11 +204,13 @@ sbatch examples/microbiome/train.slurm
 ### Controlled comparison (the deliverable) — one change at a time, 3 seeds
 
 ```bash
-EXTRA="loss.div_coeff=0 loss.phylo_coeff=0"  # baseline (no bio losses)
-EXTRA="loss.phylo_coeff=0"                    # + diversity only
-EXTRA="loss.div_coeff=0"                      # + phylo only
-EXTRA=""                                      # full
-# × meta.seed in {1, 1000, 10000} → report age_r2 / skill / t1d_auroc (mean ± std)
+# launches 4 conditions x 3 seeds (cluster sbatch, or LOCAL=1 for a smoke test):
+#   baseline · div+phylo (pre-fix) · tvar (fix only) · div+phylo+tvar (full)
+bash examples/microbiome/run_ablation.sh
+
+# each run writes <ckpt>/<condition>/seed<seed>/metrics.json; collapse them into
+# one table + bar chart (skill / effrank / age_r2 / t1d_auroc, mean +/- std):
+python -m examples.microbiome.aggregate --root <ckpt>/microbiome
 ```
 
 ---
@@ -198,11 +220,28 @@ EXTRA=""                                      # full
 | File | Role |
 |---|---|
 | `eb_jepa/architectures.py` → `SetEncoder` | abundance-weighted DeepSets encoder |
-| `eb_jepa/losses.py` → `AlphaDiversityLoss`, `PhyloDispersionLoss` | the two bio losses |
+| `eb_jepa/losses.py` → `AlphaDiversityLoss`, `PhyloDispersionLoss`, `TemporalVarianceLoss`, `effective_rank` | bio losses + collapse fix + collapse metric |
 | `eb_jepa/datasets/microbiome/precompute.py` | raw data → 24 MB cache (offline) |
 | `eb_jepa/datasets/microbiome/dataset.py` | cache → windowed batches (training) |
-| `examples/microbiome/main.py` | wires `JEPA` + bio losses + probes; trains |
-| `examples/microbiome/eval.py` | metrics + latent-space figure |
+| `examples/microbiome/main.py` | wires `JEPA` + bio losses + probes; trains; dumps `metrics.json` |
+| `examples/microbiome/eval.py` | metrics + latent-space + collapse (corr / eff-rank) figure |
+| `examples/microbiome/baselines.py` | raw / random-encoder / trained probe comparison |
+| `examples/microbiome/aggregate.py` | ablation runs → table + bar chart |
 | `examples/microbiome/cfgs/train.yaml` | config (model dims, loss coeffs, optim) |
-| `examples/microbiome/train.slurm` | SLURM launcher (GB200) |
-| `tests/test_microbiome.py` | encoder/losses/JEPA wiring tests (5/5) |
+| `examples/microbiome/train.slurm` · `run_ablation.sh` | SLURM launcher · 4×3 ablation sweep |
+| `tests/test_microbiome.py` | encoder / losses / JEPA wiring tests |
+
+---
+
+## 10. Related work (cross-links in `references/paper/`)
+
+| Theme | Papers | How it connects |
+|---|---|---|
+| **Slow-feature / temporal collapse** | `jepa-slow-features` (Sobal 2022), `temporal-straightening` | the theory behind our finding + the `TemporalVarianceLoss` fix |
+| **Anti-collapse regularizers** | `lejepa` (SIGReg/BCS, also in `losses.py`), `reconstruction-or-semantics` | VICReg-vs-SIGReg ablation; why no reconstruction |
+| **Set / permutation-invariant JEPA** | `point-jepa`, `stem-jepa`, `s-jepa` | precedent for the `SetEncoder` (DeepSets over OTUs) |
+| **Biological / sequence JEPA** | `protein-jepa`, `jepa-dna`, `polymer-jepa`, `graph-jepa` | JEPA on bio / sequence modalities (ProkBERT = DNA-LM) |
+| **Time-series JEPA** | `ts-jepa`, `mts-jepa`, `t-jepa` | comparable temporal recipes; "scales to other TS" bonus |
+
+External: *Abundance-Aware Set Transformer for Microbiome Sample Embedding*
+(arXiv 2508.11075) — direct precedent for an abundance-weighted set encoder.

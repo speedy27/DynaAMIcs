@@ -22,6 +22,11 @@
 #   for s in 1 1000 10000; do sbatch examples/microbiome/train.slurm $s; done
 # Override epochs:
 #   MICROBIOME_EPOCHS=50 sbatch examples/microbiome/train.slurm 1
+# Ablation condition (checkpoint subdir + extra dotted overrides):
+#   MICROBIOME_TAG=baseline \
+#     MICROBIOME_EXTRA="loss.div_coeff=0 loss.phylo_coeff=0 loss.tvar_coeff=0" \
+#     sbatch examples/microbiome/train.slurm 1
+# Or launch the whole 4-condition x 3-seed sweep with run_ablation.sh.
 
 set -e
 
@@ -33,8 +38,11 @@ export PYTHONUNBUFFERED=1   # stream epoch/baseline logs live into the .out file
 
 SEED="${1:-${MICROBIOME_SEED:-0}}"
 EPOCHS="${MICROBIOME_EPOCHS:-50}"
+TAG="${MICROBIOME_TAG:-full}"          # ablation condition name (checkpoint subdir)
+EXTRA="${MICROBIOME_EXTRA:-}"          # extra dotted overrides, e.g. "loss.tvar_coeff=0"
 
-echo "=== Host: $(hostname) | Arch: $ARCH | seed=$SEED epochs=$EPOCHS | $(date) ==="
+echo "=== Host: $(hostname) | Arch: $ARCH | tag=$TAG seed=$SEED epochs=$EPOCHS | $(date) ==="
+echo "=== extra overrides: ${EXTRA:-<none>} ==="
 echo "=== GPU: $(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null || echo n/a) ==="
 
 module load python312
@@ -47,18 +55,18 @@ echo "=== uv: $(uv --version) ==="
 echo ">>> uv sync..."
 uv sync --project "$REPO"
 
-# Per-seed checkpoint dir so concurrent seed jobs don't overwrite each other.
-export EBJEPA_CKPTS="${EBJEPA_CKPTS:-$EBJEPA_WORK/checkpoints}/microbiome/seed${SEED}"
+# Per-condition / per-seed checkpoint dir so concurrent jobs don't clash.
+export EBJEPA_CKPTS="${EBJEPA_CKPTS:-$EBJEPA_WORK/checkpoints}/microbiome/${TAG}/seed${SEED}"
 mkdir -p "$EBJEPA_CKPTS"
 echo "=== checkpoints -> $EBJEPA_CKPTS ==="
 
-echo ">>> Training (seed=$SEED, epochs=$EPOCHS)..."
+echo ">>> Training (tag=$TAG seed=$SEED, epochs=$EPOCHS)..."
 uv run --project "$REPO" python -m examples.microbiome.main \
     --fname "$REPO/examples/microbiome/cfgs/train.yaml" \
-    meta.seed="$SEED" optim.epochs="$EPOCHS" logging.log_wandb=false
+    meta.seed="$SEED" optim.epochs="$EPOCHS" logging.log_wandb=false $EXTRA
 
 echo ">>> Baselines (raw / random-encoder / trained JEPA)..."
 uv run --project "$REPO" python -m examples.microbiome.baselines \
     --ckpt "$EBJEPA_CKPTS/microbiome_jepa.pt"
 
-echo "=== Done (seed=$SEED) | $(date) ==="
+echo "=== Done (tag=$TAG seed=$SEED) | $(date) ==="

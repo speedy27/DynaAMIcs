@@ -26,7 +26,7 @@ dependencies = [
     "scikit-learn>=1.7.0",
     "tiktoken>=0.9.0",
     "torch>=2.7.0",
-    "torchcodec>=0.4.0",
+    "torchcodec>=0.4.0; sys_platform == 'linux'",
     "torchvision",
     "wandb[media]>=0.21.1",
     "gymnasium>=1.1.1",
@@ -67,5 +67,7 @@ dev = [
     "black>=25.1.0",
     "isort>=6.0.1",
     "pytest>=8.4.1",
-    "autoflake",
+    "autoflake", 
 ]
+
+

@@ -419,6 +419,66 @@ class PhyloDispersionLoss(nn.Module):
         return F.mse_loss(dz, dp)
 
 
+class TemporalVarianceLoss(nn.Module):
+    """Anti-*temporal*-collapse for slowly-varying sequences (microbiome-specific).
+
+    VICReg's variance term keeps each latent dimension varied *across the batch*,
+    but on slowly-varying biological series the encoder can satisfy it by encoding
+    the (constant) host identity while making consecutive timepoints near-identical
+    (z_t ~= z_{t+1}). The predictor then trivially wins by copying its input, the
+    "no-change" baseline becomes unbeatable, and ``skill_vs_identity`` <= 1. This
+    is exactly the slow-feature collapse of Sobal et al. (2022).
+
+    This term applies the VICReg hinge to the standard deviation *along time*
+    (per sample, per dimension): every trajectory must move by at least ``gamma``
+    in each latent dimension, forcing the encoder to represent community *dynamics*
+    rather than host identity. It is the targeted fix the batch-variance term
+    cannot provide.
+
+    forward(state):
+        state: [B, D, T, 1, 1] latent states (encoder output)
+    returns scalar hinge loss (0 = enough temporal variance everywhere).
+    """
+
+    def __init__(self, gamma=1.0, eps=1e-4):
+        super().__init__()
+        self.gamma = gamma
+        self.eps = eps
+
+    def forward(self, state):
+        z = state[..., 0, 0]  # [B, D, T]
+        if z.shape[-1] < 2:
+            return z.new_zeros(())
+        std_t = torch.sqrt(z.var(dim=2, unbiased=False) + self.eps)  # [B, D]
+        return F.relu(self.gamma - std_t).mean()
+
+
+def effective_rank(feats, eps=1e-12):
+    """Effective rank (Roy & Vetterli, 2007) of a feature matrix's covariance.
+
+    ``feats``: [N, D] (rows = samples). Returns ``exp(H)`` where ``H`` is the
+    Shannon entropy of the normalized covariance eigenvalues -- a smooth,
+    continuous measure of how many latent dimensions are actually used. Total
+    collapse -> effective rank -> 1; healthy decorrelated features -> -> D.
+    Strictly more informative than a std-only collapse monitor (cf. the Two-Rooms
+    rubric: "effective rank of the covariance, not just std").
+    """
+    if not torch.is_tensor(feats):
+        feats = torch.as_tensor(feats)
+    feats = feats.float()
+    feats = feats - feats.mean(0, keepdim=True)
+    n = max(1, feats.shape[0] - 1)
+    cov = (feats.t() @ feats) / n  # [D, D]
+    ev = torch.linalg.eigvalsh(cov).clamp_min(0.0)
+    s = ev.sum()
+    if s <= eps:
+        return 1.0
+    p = ev / s
+    p = p[p > eps]
+    h = -(p * p.log()).sum()
+    return float(torch.exp(h).item())
+
+
 ######################################################
 # BCS (Batched Characteristic Slicing) loss for SIGReg
 

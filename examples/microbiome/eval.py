@@ -60,7 +60,8 @@ def main():
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(1, 2, figsize=(13, 5))
+    from eb_jepa.losses import effective_rank
+    fig, ax = plt.subplots(1, 3, figsize=(19, 5))
     s0 = ax[0].scatter(P[:, 0], P[:, 1], c=dv, cmap="viridis", s=14)
     ax[0].set_title("latent space — colored by α-diversity"); plt.colorbar(s0, ax=ax[0])
     for lab, col, name in [(0, "tab:blue", "no T1D"), (1, "tab:red", "T1D")]:
@@ -68,8 +69,16 @@ def main():
         ax[1].scatter(P[m, 0], P[m, 1], c=col, s=16, alpha=0.7, label=name)
     ax[1].set_title(f"latent space — host phenotype (AUROC={metrics.get('t1d_auroc', float('nan')):.2f})")
     ax[1].legend()
-    for a in ax:
+    for a in ax[:2]:
         a.set_xlabel("PC1"); a.set_ylabel("PC2")
+    # collapse panel: latent correlation matrix + effective rank (dims actually used)
+    Xs = (X - X.mean(0)) / (X.std(0) + 1e-6)
+    corr = (Xs.T @ Xs) / max(1, Xs.shape[0])
+    er = effective_rank(X)
+    im = ax[2].imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
+    ax[2].set_title(f"latent correlation — eff.rank={er:.1f}/{X.shape[1]}")
+    ax[2].set_xlabel("latent dim"); ax[2].set_ylabel("latent dim")
+    plt.colorbar(im, ax=ax[2])
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     fig.tight_layout(); fig.savefig(args.out, dpi=150)
     print(f"figure -> {args.out}")

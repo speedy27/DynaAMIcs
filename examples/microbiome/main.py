@@ -23,6 +23,7 @@ Run (smoke test):
 """
 
 import argparse
+import json
 import os
 import sys
 
@@ -43,9 +44,17 @@ from eb_jepa.losses import (
     AlphaDiversityLoss,
     PhyloDispersionLoss,
     SquareLossSeq,
+    TemporalVarianceLoss,
     VC_IDM_Sim_Regularizer,
+    effective_rank,
 )
 from eb_jepa.schedulers import CosineWithWarmup
+
+
+def _condition_label(coeffs):
+    """Compact ablation label from the active microbiome-specific terms."""
+    active = [name for name in ("div", "phylo", "tvar") if coeffs.get(name, 0) > 0]
+    return "+".join(active) if active else "baseline"
 
 
 def build_jepa(cfg, action_dim, device):
@@ -105,6 +114,7 @@ def evaluate(jepa, alpha_loss, phylo_loss, val_loader, cfg, device, fit_loader=N
     n = max(1, tot["n"])
     metrics = {k: v / n for k, v in tot.items() if k != "n"}
     metrics["skill_vs_identity"] = metrics["ident"] / max(1e-9, metrics["pred"])
+    metrics["effrank"] = effective_rank(Xv)  # collapse monitor: dims actually used
     if fit_loader is not None:
         try:
             from sklearn.linear_model import LogisticRegression, Ridge
@@ -145,6 +155,11 @@ def run(fname, overrides):
     jepa = build_jepa(cfg, A, device)
     alpha_loss = AlphaDiversityLoss(state_dim=cfg.model.dstc).to(device)
     phylo_loss = PhyloDispersionLoss().to(device)
+    tvar_loss = TemporalVarianceLoss(gamma=cfg.loss.get("tvar_gamma", 1.0)).to(device)
+
+    n_params = sum(p.numel() for p in jepa.parameters() if p.requires_grad)
+    n_enc = sum(p.numel() for p in jepa.encoder.parameters())
+    print(f"== params: total={n_params / 1e6:.2f}M (encoder={n_enc / 1e6:.2f}M) ==")
 
     params = list(jepa.parameters()) + list(alpha_loss.parameters())
     opt = torch.optim.AdamW(params, lr=cfg.optim.lr, weight_decay=cfg.optim.weight_decay)
@@ -152,9 +167,12 @@ def run(fname, overrides):
                              warmup_ratio=0.1, min_lr=cfg.optim.lr * 0.01)
 
     ld, lp = cfg.loss.div_coeff, cfg.loss.phylo_coeff
+    lt = cfg.loss.get("tvar_coeff", 0.0)
+    last_val = {}
     for ep in range(1, cfg.optim.epochs + 1):
         jepa.train()
-        agg = {"loss": 0.0, "rloss": 0.0, "ploss": 0.0, "div": 0.0, "phylo": 0.0, "n": 0}
+        agg = {"loss": 0.0, "rloss": 0.0, "ploss": 0.0, "div": 0.0,
+               "phylo": 0.0, "tvar": 0.0, "n": 0}
         for batch in train_loader:
             obs = batch["observations"].to(device)
             act = batch["actions"].to(device)
@@ -165,7 +183,8 @@ def run(fname, overrides):
             state = jepa.encoder(obs)
             l_div = alpha_loss(state, batch["diversity"].to(device))
             l_phylo = phylo_loss(state, batch["phylo"].to(device))
-            total = loss + ld * l_div + lp * l_phylo
+            l_tvar = tvar_loss(state)
+            total = loss + ld * l_div + lp * l_phylo + lt * l_tvar
 
             opt.zero_grad(set_to_none=True)
             total.backward()
@@ -177,13 +196,16 @@ def run(fname, overrides):
             ploss_val = ploss.item() if torch.is_tensor(ploss) else float(ploss)
             agg["loss"] += total.item() * b; agg["rloss"] += rloss.item() * b
             agg["ploss"] += ploss_val * b; agg["div"] += l_div.item() * b
-            agg["phylo"] += l_phylo.item() * b; agg["n"] += b
+            agg["phylo"] += l_phylo.item() * b; agg["tvar"] += l_tvar.item() * b
+            agg["n"] += b
         n = max(1, agg["n"])
         val = evaluate(jepa, alpha_loss, phylo_loss, val_loader, cfg, device,
                        fit_loader=train_loader)
+        last_val = val
         print(f"[ep {ep:03d}] train loss={agg['loss']/n:.3f} pred={agg['ploss']/n:.4f} "
-              f"div={agg['div']/n:.4f} phylo={agg['phylo']/n:.4f} reg={agg['rloss']/n:.3f} "
-              f"|| val skill={val['skill_vs_identity']:.3f}x tvar={val['tvar']:.3f} "
+              f"div={agg['div']/n:.4f} phylo={agg['phylo']/n:.4f} tvarL={agg['tvar']/n:.4f} "
+              f"reg={agg['rloss']/n:.3f} || val skill={val['skill_vs_identity']:.3f}x "
+              f"tvar={val['tvar']:.3f} effrank={val['effrank']:.1f} "
               f"age_r2={val.get('age_r2', float('nan')):.3f} "
               f"t1d_auroc={val.get('t1d_auroc', float('nan')):.3f}")
 
@@ -193,6 +215,24 @@ def run(fname, overrides):
     torch.save({"jepa": jepa.state_dict(), "cfg": OmegaConf.to_container(cfg),
                 "milk_vocab": train_ds.milk_vocab}, out)
     print(f"saved -> {out}")
+
+    coeffs = {
+        "div": float(ld), "phylo": float(lp), "tvar": float(lt),
+        "std": float(cfg.loss.std_coeff), "cov": float(cfg.loss.cov_coeff),
+        "idm": float(cfg.loss.idm_coeff), "sim_t": float(cfg.loss.sim_coeff_t),
+    }
+    summary = {
+        "seed": int(cfg.meta.seed), "epochs": int(cfg.optim.epochs),
+        "params_M": n_params / 1e6, "coeffs": coeffs,
+        "condition": _condition_label(coeffs),
+        "metrics": {k: float(v) for k, v in last_val.items()},
+    }
+    with open(os.path.join(ckpt_dir, "metrics.json"), "w") as f:
+        json.dump(summary, f, indent=2)
+    print(f"metrics -> {os.path.join(ckpt_dir, 'metrics.json')}  "
+          f"[{summary['condition']}] "
+          f"skill={last_val.get('skill_vs_identity', float('nan')):.3f} "
+          f"effrank={last_val.get('effrank', float('nan')):.1f}")
 
 
 if __name__ == "__main__":
