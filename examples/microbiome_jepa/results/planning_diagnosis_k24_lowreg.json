@@ -1,0 +1,22 @@
+{
+  "oracle": {
+    "success_rate": 1.0,
+    "mean_final_dist": 0.7770651187155693,
+    "mean_start_dist": 6.638573648638321,
+    "tol": 0.9957860399240593,
+    "n_pairs": 6
+  },
+  "latent_alignment": {
+    "pearson": -0.0550506274501953,
+    "spearman": -0.09787900464677837,
+    "n_points": 120
+  },
+  "rollout_accuracy": {
+    "norm_div_t1": 0.011380340903997421,
+    "norm_div_tH": 0.007580803241580725,
+    "norm_div_mean": 0.00818253681063652,
+    "horizon": 20
+  },
+  "learned_mppi_success_rate": 0.0,
+  "learned_mppi_note": "from job 74718: mppi 0% success, final_dist 4.88 (>= random 4.58)"
+}
