@@ -1,23 +1,29 @@
 """
 gLV JEPA temporal benchmark — train then evaluate in one script.
 
-Trains a SetEncoder + RNNPredictor JEPA on synthetic gLV trajectories, then
-runs the MDSINE2-style hold-one-subject-out temporal benchmark comparing:
+Uses the SAME JEPA architecture as examples/microbiome/main.py (tristan branch):
+  encoder   = SetEncoder           (permutation-invariant DeepSets)
+  predictor = RNNPredictor         (action-conditioned GRU)
+  regularizer = VC_IDM_Sim_Regularizer  (VICReg + IDM, the real anti-collapse recipe)
+  predcost  = SquareLossSeq        (multi-step prediction energy)
 
+Additional loss against temporal collapse:
+  TemporalVarianceLoss  (forces latent to vary along T, not just across batch)
+
+Trained on synthetic gLV trajectories (GLVTrajDataset).
+Evaluated with MDSINE2-style hold-one-subject-out CLR-RMSE benchmark vs:
   persistence  |  gLV-L2  |  gLV-net  |  JEPA (ours)
-
-Metric: CLR-RMSE at horizons h = 1, 3, 5, 10 (matching MDSINE2 protocol).
 
 Usage
 -----
-  # smoke test (tiny model, few epochs, fast)
+  # smoke test
   python -m examples.microbiome.glv_benchmark \
       --epochs 5 --n_traj 32 --n_subjects 8 --seeds 0 --horizons 1 5
 
   # full cluster run
   python -m examples.microbiome.glv_benchmark \
-      --epochs 50 --n_traj 256 --n_subjects 30 --seeds 0 1 2 \
-      --out /path/to/results.json --figs /path/to/figs/ --ckpt_out /path/to/jepa.pt
+      --epochs 60 --n_traj 512 --n_subjects 30 --seeds 0 1 2 \
+      --out /path/results.json --figs /path/figs/ --ckpt_out /path/jepa.pt
 """
 from __future__ import annotations
 
@@ -72,8 +78,7 @@ class GLV_L2:
         self._reg = Ridge(alpha=self.alpha).fit(np.array(X, np.float32), np.array(Y, np.float32))
 
     def predict_step(self, x, action):
-        feat = np.concatenate([_clr(x), action])[None]
-        clr_p = self._reg.predict(feat)[0]
+        clr_p = self._reg.predict(np.concatenate([_clr(x), action])[None])[0]
         raw = np.exp(clr_p - clr_p.max())
         return raw / raw.sum() * max(x.sum(), 1e-8)
 
@@ -99,32 +104,69 @@ class GLV_Net:
 
     def predict_step(self, x, action):
         feat = np.concatenate([_clr(x), action])[None]
-        delta = self._sc_y.inverse_transform(
-            self._mlp.predict(self._sc_x.transform(feat)))[0]
+        delta = self._sc_y.inverse_transform(self._mlp.predict(self._sc_x.transform(feat)))[0]
         clr_p = _clr(x) + delta
         raw = np.exp(clr_p - clr_p.max())
         return raw / raw.sum() * max(x.sum(), 1e-8)
 
 
 # ---------------------------------------------------------------------------
-# JEPA predictor (uses trained checkpoint)
+# JEPA — build + checkpoint helpers (same architecture as main.py)
+# ---------------------------------------------------------------------------
+
+def _build_jepa(K: int, D: int, h_enc: int, device: torch.device):
+    """Build JEPA with the canonical microbiome architecture.
+
+    Identical to examples/microbiome/main.py::build_jepa, adapted for arbitrary K / D.
+    """
+    from eb_jepa.architectures import (
+        InverseDynamicsModel, Projector, RNNPredictor, SetEncoder,
+    )
+    from eb_jepa.jepa import JEPA
+    from eb_jepa.losses import SquareLossSeq, VC_IDM_Sim_Regularizer
+
+    encoder   = SetEncoder(emb_dim=384, h_d=h_enc, out_d=D)
+    predictor = RNNPredictor(hidden_size=D, action_dim=K, num_layers=1,
+                             final_ln=nn.LayerNorm(D))
+    idm       = InverseDynamicsModel(state_dim=D, hidden_dim=D * 2, action_dim=K)
+    projector = Projector(f"{D}-{D * 4}-{D * 4}")
+    reg = VC_IDM_Sim_Regularizer(
+        cov_coeff=25.0, std_coeff=10.0, sim_coeff_t=0.0, idm_coeff=1.0,
+        idm=idm, projector=projector, first_t_only=False,
+    )
+    predcost = SquareLossSeq()
+    return JEPA(encoder, nn.Identity(), predictor, reg, predcost).to(device)
+
+
+def _ckpt_save(blob: dict, path: str):
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    torch.save(blob, path)
+    print(f"  checkpoint -> {path}")
+
+
+# ---------------------------------------------------------------------------
+# JEPA predictor for the benchmark phase
 # ---------------------------------------------------------------------------
 
 class JEPAPredictor:
-    """Trained gLV JEPA used as a drop-in predictor for the temporal benchmark.
+    """Wraps a trained gLV JEPA for single-step rollout in the temporal benchmark.
 
-    Tokenisation pipeline per step:
+    Encoding pipeline per step:
       x [S] -> relative-CLR -> concat species_emb -> z-score -> [1, F, 1, S, 1]
-      -> SetEncoder -> latent z [1, D, 1, 1, 1]
+      -> jepa.encoder -> latent z [1, D, 1, 1, 1]
     Single-step dynamics:
-      (z_t, action_t) -> RNNPredictor -> z_{t+1} -> linear readout -> raw x
+      (z_t, action_t) -> jepa.predictor -> z_{t+1} -> linear Ridge readout -> x
     """
 
     def __init__(self, ckpt_path: str, device: str = "cpu"):
         self.device = torch.device(device)
         blob = torch.load(ckpt_path, map_location=self.device, weights_only=False)
-        self._enc = blob["encoder"].to(self.device).eval()
-        self._pred = blob["predictor"].to(self.device).eval()
+        cfg = blob["build_cfg"]
+
+        self._jepa = _build_jepa(cfg["K"], cfg["D"], cfg["h_enc"], self.device)
+        self._jepa.load_state_dict(blob["jepa_state"])
+        self._jepa.eval()
+
         self._species_emb = blob["species_emb"].to(self.device)   # [S, 384]
         self._zscore_mean = blob["zscore_mean"].to(self.device)    # [F=385]
         self._zscore_std  = blob["zscore_std"].to(self.device)     # [F=385]
@@ -134,8 +176,7 @@ class JEPAPredictor:
     def _tokenize(self, x: np.ndarray) -> torch.Tensor:
         """x: [S] raw abundance -> obs [1, F, 1, S, 1]"""
         x_t = torch.tensor(x, dtype=torch.float32, device=self.device)
-        total = x_t.sum().clamp_min(1e-12)
-        rel = x_t / total
+        rel  = x_t / x_t.sum().clamp_min(1e-12)
         log_ab = torch.log(rel.clamp_min(1e-8))
         clr_ab = log_ab - log_ab.mean()                                        # [S]
         tok = torch.cat([self._species_emb, clr_ab.unsqueeze(-1)], dim=-1)    # [S, F]
@@ -145,12 +186,11 @@ class JEPAPredictor:
 
     @torch.no_grad()
     def _encode(self, x: np.ndarray) -> np.ndarray:
-        obs = self._tokenize(x)   # [1, F, 1, S, 1]
-        z = self._enc(obs)        # [1, D, 1, 1, 1]
+        obs = self._tokenize(x)                     # [1, F, 1, S, 1]
+        z   = self._jepa.encoder(obs)               # [1, D, 1, 1, 1]
         return z[0, :, 0, 0, 0].cpu().numpy()
 
     def fit(self, states: np.ndarray, actions: np.ndarray) -> None:
-        """Fit linear CLR readout z -> CLR(x) on training trajectories."""
         from sklearn.linear_model import Ridge
         from sklearn.preprocessing import StandardScaler
         N, T1, S = states.shape
@@ -159,20 +199,19 @@ class JEPAPredictor:
             for t in range(T1):
                 Z.append(self._encode(states[i, t]))
                 Y.append(_clr(states[i, t]))
-        Z = np.array(Z, np.float32)
-        Y = np.array(Y, np.float32)
+        Z = np.array(Z, np.float32); Y = np.array(Y, np.float32)
         self._sc = StandardScaler().fit(Z)
         self._readout = Ridge(alpha=1.0).fit(self._sc.transform(Z), Y)
 
     @torch.no_grad()
     def predict_step(self, x: np.ndarray, action: np.ndarray) -> np.ndarray:
-        obs = self._tokenize(x)      # [1, F, 1, S, 1]
-        z = self._enc(obs)           # [1, D, 1, 1, 1]
-        a = torch.tensor(action, dtype=torch.float32, device=self.device
-                         ).unsqueeze(0).unsqueeze(-1)    # [1, K, 1]
-        z_next = self._pred(z, a)    # [1, D, 1, 1, 1]
-        z_np = z_next[0, :, 0, 0, 0].cpu().numpy()
-        clr_p = self._readout.predict(self._sc.transform(z_np[None]))[0]
+        obs = self._tokenize(x)                     # [1, F, 1, S, 1]
+        z   = self._jepa.encoder(obs)               # [1, D, 1, 1, 1]
+        a   = torch.tensor(action, dtype=torch.float32, device=self.device
+                           ).unsqueeze(0).unsqueeze(-1)    # [1, K, 1]
+        z_next = self._jepa.predictor(z, a)         # [1, D, 1, 1, 1]
+        z_np   = z_next[0, :, 0, 0, 0].cpu().numpy()
+        clr_p  = self._readout.predict(self._sc.transform(z_np[None]))[0]
         raw = np.exp(clr_p - clr_p.max())
         return raw / raw.sum()
 
@@ -182,7 +221,6 @@ class JEPAPredictor:
 # ---------------------------------------------------------------------------
 
 def _rollout_errors(model, states: np.ndarray, actions: np.ndarray, horizons):
-    """CLR-RMSE at each horizon for all valid start points in one subject."""
     T = states.shape[0] - 1
     max_h = max(horizons)
     errors = {h: [] for h in horizons}
@@ -190,8 +228,8 @@ def _rollout_errors(model, states: np.ndarray, actions: np.ndarray, horizons):
         x_cur = states[t0].copy()
         preds = [x_cur]
         for k in range(max_h):
-            a_idx = t0 + k
-            a = actions[a_idx] if a_idx < actions.shape[0] else np.zeros_like(actions[0])
+            idx = t0 + k
+            a = actions[idx] if idx < actions.shape[0] else np.zeros_like(actions[0])
             preds.append(model.predict_step(x_cur, a))
             x_cur = preds[-1]
         for h in horizons:
@@ -200,37 +238,26 @@ def _rollout_errors(model, states: np.ndarray, actions: np.ndarray, horizons):
 
 
 # ---------------------------------------------------------------------------
-# JEPA training
+# Training
 # ---------------------------------------------------------------------------
 
-def _vicreg_loss(z1: torch.Tensor, z2: torch.Tensor,
-                 lam: float = 25.0, mu: float = 25.0, nu: float = 1.0):
-    """VICReg on two latent matrices [N, D]."""
-    sim_loss = F.mse_loss(z1, z2)
-
-    def _vc(z):
-        z = z - z.mean(0)
-        var_loss = torch.relu(1.0 - (z.var(0) + 1e-4).sqrt()).mean()
-        cov = (z.T @ z) / (z.shape[0] - 1)
-        cov_loss = cov.fill_diagonal_(0).pow(2).sum() / z.shape[1]
-        return var_loss, cov_loss
-
-    vl1, cl1 = _vc(z1); vl2, cl2 = _vc(z2)
-    return nu * sim_loss + lam * (vl1 + vl2) / 2 + mu * (cl1 + cl2) / 2
-
-
 def train_jepa(args, device: torch.device) -> dict:
-    """Train SetEncoder + RNNPredictor on GLVTrajDataset. Returns checkpoint dict."""
-    from eb_jepa.architectures import RNNPredictor, SetEncoder
+    from eb_jepa.losses import TemporalVarianceLoss
     from eb_jepa.datasets.microbiome.traj import (
         GLVTrajConfig, GLVTrajDataset, init_microbiome_traj_data)
+    from eb_jepa.schedulers import CosineWithWarmup
+
+    D, K_arg = args.d_model, args.n_candidate
+    W = args.n_window
 
     print(f"\n{'='*60}")
-    print(f"JEPA Training | n_traj={args.n_traj}  T={args.T_train}  epochs={args.epochs}")
-    print(f"              | d_model={args.d_model}  h_enc={args.h_enc}  window={args.n_window}")
-    print(f"              | device={device}")
+    print(f"JEPA Training  (canonical microbiome architecture)")
+    print(f"  n_traj={args.n_traj}  T={args.T_train}  W={W}  epochs={args.epochs}")
+    print(f"  SetEncoder(384->h{args.h_enc}->D{D}) + RNN + IDM + VICReg + TemporalVar")
+    print(f"  device={device}")
     print(f"{'='*60}")
 
+    # ── data ──────────────────────────────────────────────────────────────
     train_loader, _, dl_cfg, _ = init_microbiome_traj_data(
         cfg_data=dict(
             n_traj=args.n_traj,
@@ -238,96 +265,99 @@ def train_jepa(args, device: torch.device) -> dict:
             n_species=args.n_species,
             n_candidate=args.n_candidate,
             action_policy="random",
-            sim_seed=0,
-            emb_seed=0,
+            sim_seed=0, emb_seed=0,
             batch_size=args.batch_size,
             num_workers=0,
-            num_frames=args.n_window,
+            num_frames=W,
             frameskip=1,
             train_fraction=0.9,
         ),
         device=None,
     )
+    K = dl_cfg.action_dim
 
-    D   = args.d_model
-    K   = dl_cfg.action_dim
-    S   = dl_cfg.n_max
-
-    # Reference dataset for zscore stats and species embeddings
+    # Reference dataset for zscore + species embeddings (same seeds)
     ref_ds = GLVTrajDataset(GLVTrajConfig(
         n_traj=args.n_traj, T=args.T_train,
         n_species=args.n_species, n_candidate=args.n_candidate,
         sim_seed=0, emb_seed=0,
     ))
-    species_emb = ref_ds._species_emb   # [S, 384]  (fixed random)
-    zscore_mean = ref_ds.zscore.mean    # [F=385]
-    zscore_std  = ref_ds.zscore.std     # [F=385]
+    species_emb = ref_ds._species_emb    # [S, 384]
+    zscore_mean = ref_ds.zscore.mean     # [F=385]
+    zscore_std  = ref_ds.zscore.std      # [F=385]
 
-    enc  = SetEncoder(emb_dim=384, h_d=args.h_enc, out_d=D).to(device)
-    pred = RNNPredictor(
-        hidden_size=D, action_dim=K, num_layers=1,
-        final_ln=nn.LayerNorm(D).to(device),
-    ).to(device)
+    # ── model ─────────────────────────────────────────────────────────────
+    jepa     = _build_jepa(K, D, args.h_enc, device)
+    tvar_loss = TemporalVarianceLoss(margin=1.0).to(device)
 
-    opt = torch.optim.AdamW(
-        list(enc.parameters()) + list(pred.parameters()), lr=args.lr, weight_decay=1e-4)
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(
-        opt, T_max=args.epochs, eta_min=args.lr * 0.01)
+    params = list(jepa.parameters())
+    opt = torch.optim.AdamW(params, lr=args.lr, weight_decay=1e-4)
+    total_steps = max(1, len(train_loader) * args.epochs)
+    sched = CosineWithWarmup(opt, total_steps=total_steps, warmup_ratio=0.1,
+                             min_lr=args.lr * 0.01)
 
     log_every = max(1, args.epochs // 10)
+    nsteps = W - 1   # predict W-1 steps autoregressively from context step 0
 
+    # ── training loop ─────────────────────────────────────────────────────
     for epoch in range(1, args.epochs + 1):
-        enc.train(); pred.train()
-        total_loss = 0.0; n_batch = 0
+        jepa.train()
+        agg = {"total": 0.0, "pred": 0.0, "reg": 0.0, "tvar": 0.0, "n": 0}
 
         for batch in train_loader:
             if batch is None: continue
             obs, act, *_ = batch
-            # obs["otu"]: [B, W, N, F=385]    act: [B, W, K]
+            # obs["otu"]: [B, W, N, F]   act: [B, W, K]
             otu   = obs["otu"].to(device)   # [B, W, N, F]
             act_t = act.to(device)          # [B, W, K]
-            B, W, N, Fv = otu.shape
+            B, WW, N, Fv = otu.shape
 
-            # 5D layout: [B, F, W, N, 1]  (TemporalBatchMixin unfolds W into batch)
-            obs_5d = otu.permute(0, 3, 1, 2).unsqueeze(-1)   # [B, F, W, N, 1]
-            z = enc(obs_5d)   # [B, D, W, 1, 1]
+            # Convert to JEPA 5-D format
+            obs_5d   = otu.permute(0, 3, 1, 2).unsqueeze(-1)   # [B, F, W, N, 1]
+            actions_t = act_t.permute(0, 2, 1)                  # [B, K, W]
 
-            # Flatten (B, W-1) pairs for single-step prediction
-            z_prev_flat = (z[:, :, :-1, :, :]
-                           .permute(0, 2, 1, 3, 4)
-                           .reshape(B * (W - 1), D, 1, 1, 1))         # [B*(W-1), D, 1, 1, 1]
-            z_targ_flat = (z[:, :, 1:, :, :]
-                           .permute(0, 2, 1, 3, 4)
-                           .reshape(B * (W - 1), D).detach())          # [B*(W-1), D]
-            a_flat = act_t[:, :-1, :].reshape(B * (W - 1), K, 1)      # [B*(W-1), K, 1]
+            # JEPA.unroll: encode + VC_IDM regularizer + autoregressive prediction
+            _, (loss, rloss, _, _, ploss) = jepa.unroll(
+                obs_5d, actions_t, nsteps=nsteps,
+                unroll_mode="autoregressive", compute_loss=True,
+            )
 
-            z_pred_flat = pred(z_prev_flat, a_flat)[:, :, 0, 0, 0]    # [B*(W-1), D]
+            # Extra TemporalVarianceLoss (anti temporal-collapse)
+            state = jepa.encoder(obs_5d)            # [B, D, W, 1, 1]
+            l_tvar = tvar_loss(state)
+            total = loss + args.tvar_coeff * l_tvar
 
-            loss = _vicreg_loss(z_pred_flat, z_targ_flat)
+            opt.zero_grad(set_to_none=True)
+            total.backward()
+            torch.nn.utils.clip_grad_norm_(params, 1.0)
+            opt.step(); sched.step()
 
-            # Temporal variance penalty: latents should vary across time
-            tvar = z[:, :, :, 0, 0].var(dim=2).mean()
-            loss = loss + torch.relu(1.0 - tvar)
+            b = otu.shape[0]
+            ploss_v = ploss.item() if torch.is_tensor(ploss) else float(ploss or 0)
+            agg["total"] += total.item() * b; agg["reg"]  += rloss.item() * b
+            agg["pred"]  += ploss_v * b;      agg["tvar"] += l_tvar.item() * b
+            agg["n"] += b
 
-            opt.zero_grad(); loss.backward(); opt.step()
-            total_loss += loss.item(); n_batch += 1
-
-        sched.step()
         if epoch % log_every == 0 or epoch == args.epochs:
-            print(f"  epoch {epoch:3d}/{args.epochs}  loss={total_loss / max(1, n_batch):.4f}")
+            n = max(1, agg["n"])
+            tvar_v = state[..., 0, 0].var(dim=2).mean().item()
+            print(f"  epoch {epoch:3d}/{args.epochs}"
+                  f"  total={agg['total']/n:.4f}"
+                  f"  pred={agg['pred']/n:.4f}"
+                  f"  reg={agg['reg']/n:.4f}"
+                  f"  tvarL={agg['tvar']/n:.4f}"
+                  f"  tvar(monitor)={tvar_v:.4f}")
 
+    # ── checkpoint ────────────────────────────────────────────────────────
     blob = {
-        "encoder":      enc.cpu(),
-        "predictor":    pred.cpu(),
+        "jepa_state":   jepa.cpu().state_dict(),
+        "build_cfg":    {"K": K, "D": D, "h_enc": args.h_enc},
         "species_emb":  species_emb,
         "zscore_mean":  zscore_mean,
         "zscore_std":   zscore_std,
-        "config": {"n_species": S, "n_candidate": K, "d_model": D, "h_enc": args.h_enc},
     }
     if args.ckpt_out:
-        Path(args.ckpt_out).parent.mkdir(parents=True, exist_ok=True)
-        torch.save(blob, args.ckpt_out)
-        print(f"  checkpoint -> {args.ckpt_out}")
+        _ckpt_save(blob, args.ckpt_out)
 
     return blob
 
@@ -339,13 +369,13 @@ def train_jepa(args, device: torch.device) -> dict:
 def run_benchmark(args, jepa_blob: dict, device: torch.device) -> dict:
     from eb_jepa.datasets.microbiome.glv import GLVConfig, GLVSimulator
 
-    horizons = args.horizons
+    horizons   = args.horizons
     model_names = ["persistence", "gLV-L2", "gLV-net", "JEPA (ours)"]
     all_results: dict = {}
 
     for seed in args.seeds:
         print(f"\n{'='*60}")
-        print(f"Benchmark seed={seed}  |  {args.n_subjects} subjects  T={args.T}")
+        print(f"Benchmark  seed={seed}  |  {args.n_subjects} subjects  T={args.T}")
         print(f"{'='*60}")
 
         glv  = GLVSimulator(GLVConfig(n_species=args.n_species,
@@ -355,7 +385,7 @@ def run_benchmark(args, jepa_blob: dict, device: torch.device) -> dict:
         states  = data["states"]    # [N, T+1, S]
         actions = data["actions"]   # [N, T,   K]
 
-        # Materialise JEPA predictor from in-memory blob
+        # Materialise JEPA predictor via tmp checkpoint file
         tmp = tempfile.NamedTemporaryFile(suffix=".pt", delete=False)
         torch.save(jepa_blob, tmp.name); tmp.close()
         jepa_pred = JEPAPredictor(tmp.name, device=str(device))
@@ -365,8 +395,8 @@ def run_benchmark(args, jepa_blob: dict, device: torch.device) -> dict:
 
         for s in range(args.n_subjects):
             tr_idx = [i for i in range(args.n_subjects) if i != s]
-            tr_s   = states[tr_idx];  tr_a = actions[tr_idx]
-            ho_s   = states[s];       ho_a = actions[s]
+            tr_s, tr_a = states[tr_idx], actions[tr_idx]
+            ho_s, ho_a = states[s],      actions[s]
 
             models = {
                 "persistence": PersistenceModel(),
@@ -381,9 +411,9 @@ def run_benchmark(args, jepa_blob: dict, device: torch.device) -> dict:
                 for h in horizons:
                     fold_errors[name][h].extend(errs[h])
                 if s == 0:
-                    h1   = np.mean(fold_errors[name][horizons[0]])
-                    print(f"  [{name:14s}] fold 0: {time.time()-t0:.1f}s"
-                          f"  h={horizons[0]} RMSE={h1:.4f}")
+                    h1 = np.mean(fold_errors[name][horizons[0]])
+                    print(f"  [{name:14s}]  fold-0  {time.time()-t0:.1f}s  "
+                          f"h={horizons[0]} RMSE={h1:.4f}")
 
         seed_res = {
             name: {h: {"mean": float(np.mean(fold_errors[name][h])),
@@ -395,14 +425,14 @@ def run_benchmark(args, jepa_blob: dict, device: torch.device) -> dict:
         _print_table(seed_res, horizons, args.n_subjects)
 
     summary = _aggregate(all_results, horizons, model_names)
-    print(f"\n{'='*60}\nSUMMARY (mean over {len(args.seeds)} seed(s))\n{'='*60}")
+    print(f"\n{'='*60}\nSUMMARY  (mean over {len(args.seeds)} seed(s))\n{'='*60}")
     _print_table(summary, horizons, args.n_subjects)
     _print_skill(summary, horizons)
     return summary
 
 
 def _print_table(results: dict, horizons, n_subjects: int):
-    col_w = 17
+    col_w = 18
     hdr = f"{'model':17s}|" + "|".join(f"{'h='+str(h):^{col_w}}" for h in horizons)
     print(f"\nCLR-RMSE  --  {n_subjects} subjects, HOSO CV")
     print(hdr); print("-" * len(hdr))
@@ -413,7 +443,7 @@ def _print_table(results: dict, horizons, n_subjects: int):
 
 def _print_skill(summary: dict, horizons):
     pers = {h: summary["persistence"][h]["mean"] for h in horizons}
-    print("\nSkill vs persistence (pers_RMSE / model_RMSE, >1 beats no-change):")
+    print("\nSkill vs persistence (pers_RMSE / model_RMSE,  >1 beats no-change):")
     for name, data in summary.items():
         if name == "persistence": continue
         skills = [f"h={h}: {pers[h]/max(data[h]['mean'], 1e-9):.3f}x" for h in horizons]
@@ -503,8 +533,7 @@ def save_figures(summary: dict, horizons, n_subjects: int, seeds, out_dir: str):
     if len(horizons) == 1: axes = [axes]
     for ax, h in zip(axes, horizons):
         for xi, name in enumerate(non_pers):
-            v = summary[name][h]["mean"]
-            e = summary[name][h]["std"]
+            v = summary[name][h]["mean"]; e = summary[name][h]["std"]
             ec = "black" if name == "JEPA (ours)" else "none"
             lw = 1.5 if name == "JEPA (ours)" else 0
             ax.bar(xi, v, yerr=e, color=COLORS.get(name, "#888"), capsize=5,
@@ -523,7 +552,7 @@ def save_figures(summary: dict, horizons, n_subjects: int, seeds, out_dir: str):
     fig.savefig(out, dpi=150, bbox_inches="tight"); plt.close(fig)
     print(f"  -> {out}")
 
-    # ── Fig 4: JEPA vs gLV-net with % improvement annotation ────────────────
+    # ── Fig 4: JEPA vs gLV-net with % improvement ────────────────────────────
     net_m  = [summary["gLV-net"][h]["mean"]     for h in horizons]
     jep_m  = [summary["JEPA (ours)"][h]["mean"] for h in horizons]
     pers_m = [summary["persistence"][h]["mean"] for h in horizons]
@@ -534,7 +563,7 @@ def save_figures(summary: dict, horizons, n_subjects: int, seeds, out_dir: str):
            edgecolor="black", linewidth=1.2)
     for i, (nv, jv, h) in enumerate(zip(net_m, jep_m, horizons)):
         gain = 100.0 * (nv - jv) / max(nv, 1e-9)
-        sign = "v" if gain > 0 else "^"   # ASCII safe
+        sign = "v" if gain > 0 else "^"
         col  = "#2e7d32" if gain > 0 else "#c62828"
         ax.annotate(f"{sign}{abs(gain):.1f}%", xy=(i + w/2, jv),
                     ha="center", va="bottom", fontsize=9, color=col, fontweight="bold")
@@ -542,7 +571,7 @@ def save_figures(summary: dict, horizons, n_subjects: int, seeds, out_dir: str):
             linewidth=1.5, markersize=5, label="Persistence")
     ax.set_xticks(xs); ax.set_xticklabels([f"h={h}" for h in horizons])
     ax.set_ylabel("CLR-RMSE (lower is better)", fontsize=11)
-    ax.set_title("JEPA vs strongest baseline (gLV-net)", fontsize=11)
+    ax.set_title("JEPA vs strongest baseline (gLV-net)\n% improvement annotated", fontsize=11)
     ax.legend(fontsize=10); ax.grid(True, axis="y", alpha=0.3)
     fig.tight_layout()
     out = f"{out_dir}/glv_benchmark_jepa_vs_net.png"
@@ -561,26 +590,26 @@ def main():
     p.add_argument("--n_candidate", type=int,   default=8)
     p.add_argument("--n_traj",      type=int,   default=256,  help="Training trajectories")
     p.add_argument("--T_train",     type=int,   default=40,   help="Steps per training traj")
-    p.add_argument("--n_window",    type=int,   default=6,    help="Context window W")
-    p.add_argument("--epochs",      type=int,   default=50)
+    p.add_argument("--n_window",    type=int,   default=8,    help="Context window W")
+    p.add_argument("--epochs",      type=int,   default=60)
     p.add_argument("--batch_size",  type=int,   default=32)
     p.add_argument("--lr",          type=float, default=1e-3)
     p.add_argument("--d_model",     type=int,   default=128,  help="Latent state dim D")
     p.add_argument("--h_enc",       type=int,   default=256,  help="SetEncoder hidden dim")
+    p.add_argument("--tvar_coeff",  type=float, default=1.0,  help="TemporalVarianceLoss weight")
     p.add_argument("--ckpt_out",    type=str,   default=None)
     p.add_argument("--n_subjects",  type=int,   default=30)
     p.add_argument("--T",           type=int,   default=60,   help="Benchmark traj length")
     p.add_argument("--seeds",       type=int,   nargs="+",    default=[0, 1, 2])
     p.add_argument("--horizons",    type=int,   nargs="+",    default=[1, 3, 5, 10])
-    p.add_argument("--out",         type=str,   default=None, help="Results JSON path")
-    p.add_argument("--figs",        type=str,   default=None, help="Figure output dir")
+    p.add_argument("--out",         type=str,   default=None)
+    p.add_argument("--figs",        type=str,   default=None)
     p.add_argument("--device",      type=str,
                    default="cuda" if torch.cuda.is_available() else "cpu")
     args = p.parse_args()
 
     device = torch.device(args.device)
     print(f"Device: {device}")
-
     jepa_blob = train_jepa(args, device)
     summary   = run_benchmark(args, jepa_blob, device)
 
@@ -591,7 +620,8 @@ def main():
             "config": {"n_subjects": args.n_subjects, "T": args.T,
                        "horizons": args.horizons, "seeds": args.seeds,
                        "epochs": args.epochs, "n_traj": args.n_traj,
-                       "d_model": args.d_model, "h_enc": args.h_enc},
+                       "d_model": args.d_model, "h_enc": args.h_enc,
+                       "tvar_coeff": args.tvar_coeff},
         }, open(args.out, "w"), indent=2)
         print(f"\nResults -> {args.out}")
 
