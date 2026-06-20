@@ -1,0 +1,51 @@
+# Microbiome-JEPA: action-conditioned world model for gut bacterial communities.
+meta:
+  seed: 0
+
+data:
+  cache_path: eb_jepa/datasets/microbiome/cache.pt
+  n_window: 6          # T timepoints per window
+  tp_stride: 3         # gap between window steps -> larger Δt transitions (LEVER 2:
+                       #   makes prediction non-trivial; consecutive samples barely change)
+  n_max: 64            # OTU slots per community (top-abundance kept)
+  val_fraction: 0.2
+  batch_size: 64
+  num_workers: 0
+
+model:
+  emb_dim: 384         # ProkBERT sequence-embedding dim (input token dim)
+  henc: 256            # SetEncoder hidden width
+  dstc: 128            # latent state dim D
+  hpre: 256            # predictor / inverse-dynamics hidden width
+  nsteps: 4            # K autoregressive rollout steps (fights exposure bias)
+  normalize_features: true  # per-feature z-score of the encoder MLP input (the log-abundance
+                            #   channel otherwise dominates the VICReg variance; raw abundance
+                            #   kept for pooling weight/mask). Ablatable: set false to compare.
+  residual_predictor: false # z_{t+1}=z_t+Δ (zero-init) predictor stays available & ablatable,
+                            #   but OFF by default: tested (full_res) and it did NOT beat the
+                            #   linear-AR baseline -- the bottleneck is the encoder's temporal
+                            #   collapse, not the predictor head
+
+loss:
+  pred_coeff: 1.0      # weight on the latent prediction loss (tested 5.0 -> hurt the
+                       #   representation for no dynamics gain, so kept at 1)
+  std_coeff: 10.0      # VICReg variance (anti-collapse) -- WATCH THIS
+  cov_coeff: 25.0      # VICReg covariance (decorrelation)
+  sim_coeff_t: 0.0     # temporal smoothness (OFF: it causes temporal collapse here
+                       #   -- it trains z_t≈z_{t+1}, making the no-change baseline trivial)
+  idm_coeff: 1.0       # inverse-dynamics (keeps latent action-relevant)
+  div_coeff: 1.0       # AlphaDiversityLoss   (microbiome-specific, option 2)
+  phylo_coeff: 1.0     # PhyloDispersionLoss  (soft-UniFrac, option 3)
+  tvar_coeff: 1.0      # TemporalVarianceLoss (LEVER 1: anti temporal-collapse)
+  tvar_margin: 4.0     # min per-dim std along time (RAISED 1->4: the REAL fix -- the encoder
+                       #   was temporally collapsed (tvar~8e-4), so a closed-form linear AR won
+                       #   the 1-step game; force trajectories to MOVE => real dynamics to learn)
+
+optim:
+  epochs: 50
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  probe_every: 5       # run the (expensive) age/T1D probe every N epochs only
+
+logging:
+  log_wandb: false
