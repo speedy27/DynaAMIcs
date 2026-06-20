@@ -1,0 +1,80 @@
+{
+  "experiment": "EXP3 bottleneck shrink (latent dim toward true-state dim=24)",
+  "metric_coeff": 0,
+  "note": "pure JEPA; latent dim swept toward the true gLV state dim S=24.",
+  "reference_bars": [
+    {
+      "tag": "pure-JEPA idm=1.0 (ref, fails)",
+      "d_model": 128,
+      "mppi_latent_success": 0.0,
+      "mppi_latent_final": 4.531143658506449,
+      "freerun_6step_err": 0.08427272154095893,
+      "latent_spearman": 0.08453076276710987,
+      "recog_guild": 0.89921875,
+      "recog_basin": 0.6895833333333333
+    },
+    {
+      "tag": "HYBRID mc=0.3 (upper bar)",
+      "d_model": 128,
+      "mppi_latent_success": 1.0,
+      "mppi_latent_final": 0.8037561808461082,
+      "freerun_6step_err": 0.2834064230353882,
+      "latent_spearman": 0.9903638472443016,
+      "recog_guild": 0.97109375,
+      "recog_basin": 0.8125
+    }
+  ],
+  "variants": [
+    {
+      "tag": "d=16",
+      "d_model": 16,
+      "checkpoint": "checkpoints/plan_model_dim_16/latest.pth.tar",
+      "mppi_latent_success": 0.0,
+      "mppi_latent_final": 4.823093166109174,
+      "mppi_decoded_success": 0.0,
+      "mppi_learned_success": 0.0,
+      "freerun_6step_err": 0.04121985547884833,
+      "one_step_err": 0.035206012427806854,
+      "latent_spearman": 0.25364090312607346,
+      "decode_r2_mlp": 0.6597481966018677,
+      "feat_std": 0.010133536532521248,
+      "recog_guild": 0.671875,
+      "recog_basin": 0.575,
+      "head_spearman": 0.4315603573074546
+    },
+    {
+      "tag": "d=24",
+      "d_model": 24,
+      "checkpoint": "checkpoints/plan_model_dim_24/latest.pth.tar",
+      "mppi_latent_success": 0.0,
+      "mppi_latent_final": 5.091993237563402,
+      "mppi_decoded_success": 0.0,
+      "mppi_learned_success": 0.0,
+      "freerun_6step_err": 0.049621769243773685,
+      "one_step_err": 0.04309724271297455,
+      "latent_spearman": 0.19724076144824418,
+      "decode_r2_mlp": 0.7211427688598633,
+      "feat_std": 0.009574460797011852,
+      "recog_guild": 0.67578125,
+      "recog_basin": 0.5333333333333333,
+      "head_spearman": 0.4463789425915726
+    },
+    {
+      "tag": "d=32",
+      "d_model": 32,
+      "checkpoint": "checkpoints/plan_model_dim_32/latest.pth.tar",
+      "mppi_latent_success": 0.0,
+      "mppi_latent_final": 4.234519353432585,
+      "mppi_decoded_success": 0.0,
+      "mppi_learned_success": 0.0,
+      "freerun_6step_err": 0.057310600885345286,
+      "one_step_err": 0.05254872515797615,
+      "latent_spearman": 0.2372507622124326,
+      "decode_r2_mlp": 0.7800300717353821,
+      "feat_std": 0.009226249530911446,
+      "recog_guild": 0.746875,
+      "recog_basin": 0.58125,
+      "head_spearman": 0.5472779875355147
+    }
+  ]
+}
