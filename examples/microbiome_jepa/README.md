@@ -16,6 +16,17 @@ intervention without the inverse-dynamics term; the IDM term robustly recovers i
 [results/ablation_collapse.png](results/ablation_collapse.png). The effect is regime-dependent (strong
 VICReg partially substitutes for IDM; default regime +0.073, seed-noisy) — that contrast is the point.
 
+## Follow-up findings (all measured; see [REPORT.md](REPORT.md))
+- **Real-data probe (M2):** swapping VICReg→**SIGReg** (LeJEPA isotropy) gives a real *matched-budget* win
+  on the frozen infant-env probe (linear 0.514 vs VICReg 0.484; MLP 0.526 — matches the supervised Susagi MLP).
+- **Planning (M3): a thorough, honest negative.** The gLV task is controllable only at K=24 (oracle 100%);
+  the learned planner never crosses tol across **every lever** tried — two regularizers, decoded + learned
+  monotonic costs (the learned cost ranks at Spearman 0.81, the best method, final ~3.0), a capacity sweep,
+  and the planning loop (already receding-horizon; longer horizon is *better*, so compounding error is not
+  the wall). The residual gap is the learned model's fidelity for precise closed-loop control.
+- **Sequencing-tech invariance: honest negative.** Our SSL reps (VICReg & SIGReg) *retain* the amplicon-vs-WGS
+  protocol signal (≈0.96 recoverable) more than the Susagi imposter rep (0.89) — isotropy doesn't buy invariance.
+
 ## Reproduce
 All GPU runs are on the Dalia GB200 cluster (see the `dalia-training` skill); the gLV experiments are
 fully synthetic (no data download). From the repo root on the cluster (`cd $WORK/eb_jepa`):
@@ -67,6 +78,9 @@ Note: fire override syntax is `--key value` (bare `key=value` binds to the posit
 | `realdata.py` | real-corpus Layer A probe: frozen **linear + MLP** vs Susagi MLP on the true abundance matrix |
 | `tech_invariance.py` | sequencing-tech invariance: amplicon-vs-wgs recoverability from JEPA vs raw / random / Susagi reps |
 | `run_realdata_big.sh`, `run_realdata_eval.sh`, `run_tech_invariance.sh` | real-data pretrain/probe + tech-invariance |
+| `plan_glv_learned.py` | M3 last lever: a LEARNED monotonic cost (rank head on the frozen latent) for MPPI + a horizon sweep |
+| `run_realdata_sigreg.sh`, `run_realdata_ema.sh` | EXP1/EXP2: SIGReg (`loss.type bcs`) and SIGReg+EMA-teacher Layer-A pretraining |
+| `losses.py: SIGReg_IDM_Sim_Regularizer` | SIGReg (Epps-Pulley isotropy) world-model regularizer (M3 geometry gate) |
 | `probe_downstream.py`, `baselines_port.py` | earlier Layer A downstream probe scaffolding |
 | `eb_jepa/datasets/microbiome/{glv,otu_data,transforms,traj}.py` | gLV simulator + OTU/trajectory datasets + CLR/z-score |
 | `results/` | committed figures + raw JSON of the measured runs |
