@@ -1,0 +1,18 @@
+{
+  "k": 6,
+  "tol": 0.9957860399240593,
+  "one_step_err_1steppred": 0.23744766414165497,
+  "one_step_err_multipred": 0.07241259515285492,
+  "freerun_err_1steppred": 0.6111653123113017,
+  "freerun_err_multipred": 0.08607054728781804,
+  "gate_bites_freerun_reduced": true,
+  "multistep_plan_success": 0.0,
+  "multistep_plan_final": 4.125485862752274,
+  "multistep_plan_err_on_traj": 0.17227520351815553,
+  "crossed_tol": false,
+  "verdict": "multi-step REDUCES free-running error but does NOT cross tol -> capacity-limited M3 negative",
+  "baselines": {
+    "oracle": 0.79,
+    "learned_cost_1step": 3.06
+  }
+}
