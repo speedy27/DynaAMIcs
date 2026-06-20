@@ -173,6 +173,7 @@ class JEPAPredictor:
         self._zscore_std  = blob["zscore_std"].to(self.device)     # [F=385]
         self._readout: Optional[object] = None
         self._sc: Optional[object] = None
+        self._z_state: Optional[torch.Tensor] = None  # carries latent across steps
 
     def _tokenize(self, x: np.ndarray) -> torch.Tensor:
         """x: [S] raw abundance -> obs [1, F, 1, S, 1]"""
@@ -203,17 +204,29 @@ class JEPAPredictor:
         Z = np.array(Z, np.float32); Y = np.array(Y, np.float32)
         self._sc = StandardScaler().fit(Z)
         self._readout = Ridge(alpha=1.0).fit(self._sc.transform(Z), Y)
+        self._z_state = None
+
+    def reset(self) -> None:
+        """Reset latent state — call at the start of each new trajectory."""
+        self._z_state = None
 
     @torch.no_grad()
     def predict_step(self, x: np.ndarray, action: np.ndarray) -> np.ndarray:
-        obs = self._tokenize(x)                     # [1, F, 1, S, 1]
-        z   = self._jepa.encoder(obs)               # [1, D, 1, 1, 1]
-        a   = torch.tensor(action, dtype=torch.float32, device=self.device
-                           ).unsqueeze(0).unsqueeze(-1)    # [1, K, 1]
-        z_next = self._jepa.predictor(z, a)         # [1, D, 1, 1, 1]
-        z_np   = z_next[0, :, 0, 0, 0].cpu().numpy()
-        clr_p  = self._readout.predict(self._sc.transform(z_np[None]))[0]
-        raw = np.exp(clr_p - clr_p.max())
+        a = torch.tensor(action, dtype=torch.float32, device=self.device
+                         ).unsqueeze(0).unsqueeze(-1)    # [1, K, 1]
+
+        # First step: encode the true observation to get z_0.
+        # Subsequent steps: propagate z in latent space directly — no re-encoding.
+        if self._z_state is None:
+            obs = self._tokenize(x)                  # [1, F, 1, S, 1]
+            self._z_state = self._jepa.encoder(obs)  # [1, D, 1, 1, 1]
+
+        z_next = self._jepa.predictor(self._z_state, a)  # [1, D, 1, 1, 1]
+        self._z_state = z_next                            # carry forward in latent space
+
+        z_np  = z_next[0, :, 0, 0, 0].cpu().numpy()
+        clr_p = self._readout.predict(self._sc.transform(z_np[None]))[0]
+        raw   = np.exp(clr_p - clr_p.max())
         return raw / raw.sum()
 
 
@@ -226,6 +239,8 @@ def _rollout_errors(model, states: np.ndarray, actions: np.ndarray, horizons):
     max_h = max(horizons)
     errors = {h: [] for h in horizons}
     for t0 in range(T - max_h + 1):
+        if hasattr(model, "reset"):
+            model.reset()
         x_cur = states[t0].copy()
         preds = [x_cur]
         for k in range(max_h):
