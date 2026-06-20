@@ -83,7 +83,8 @@ def run(fname, overrides):
     torch.manual_seed(cfg.meta.seed); np.random.seed(cfg.meta.seed)
 
     dcfg = TahoeConfig(cache_path=cfg.data.cache_path, drop_frac=0.0, noise_std=0.0,
-                       val_fraction=cfg.data.val_fraction, seed=cfg.meta.seed)
+                       val_fraction=cfg.data.val_fraction, seed=cfg.meta.seed,
+                       pathways_path=cfg.data.get("pathways", ""))
     tr, va, _, _ = make_loaders(dcfg, batch_size=cfg.data.batch_size)
     K, D = tr.K, cfg.model.dstc
     Xtr, Xva = tr.X[tr.ids], va.X[va.ids]                  # standardized expression
@@ -172,8 +173,12 @@ def run(fname, overrides):
             if r: print(f"  {tname:10s} {feat:12s} F1={r['macro_f1']:.3f} acc={r['acc']:.3f}")
 
     ckpt = os.environ.get("EBJEPA_CKPTS", "checkpoints/tahoe"); os.makedirs(ckpt, exist_ok=True)
+    # source_dims lets perturb.py rebuild the exact encoder (re-register frozen sources
+    # with matching shapes) before load_state_dict, so the grounded encoder reloads cleanly.
+    source_dims = {nm: m.in_features for nm, m in online.src_proj.items()}
     torch.save({"target": target.state_dict(), "online": online.state_dict(),
-                "cfg": OmegaConf.to_container(cfg)}, os.path.join(ckpt, "tahoe_ground.pt"))
+                "cfg": OmegaConf.to_container(cfg), "n_genes": K, "out_d": D,
+                "source_dims": source_dims}, os.path.join(ckpt, "tahoe_ground.pt"))
     print(f"saved -> {os.path.join(ckpt, 'tahoe_ground.pt')}")
 
 

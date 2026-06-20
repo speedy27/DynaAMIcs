@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vision — cross-scale hierarchical world model</title>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']]},svg:{fontCache:'global'}};</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root{--ink:#1d2530;--mut:#5f6b7a;--line:#9aa6b2;
+        --enc:#7a3b8f;--pred:#43a047;--act:#e74c3c;--state:#c0392b;--cell:#5b8def;--accent:#fb8c00;}
+  *{box-sizing:border-box}
+  body{font-family:"Inter",-apple-system,"Helvetica Neue",Arial,sans-serif;color:var(--ink);
+       margin:0;padding:28px 26px;background:#fff;-webkit-font-smoothing:antialiased}
+  h1{font-size:14px;font-weight:600;letter-spacing:.03em;color:var(--mut);text-transform:uppercase;margin:0 0 5px}
+  .sub{font-size:12.5px;color:var(--mut);margin:0 0 18px;line-height:1.45;max-width:820px}
+  .sub b{color:var(--ink)}
+  .two{display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
+  .panel{flex:0 0 auto}
+  .pt{font-size:12px;font-weight:700;margin:0 0 12px}
+  /* hierarchical world-model (left) */
+  .rung{display:flex;align-items:center;gap:9px;margin:0}
+  .state{border:1.6px solid var(--state);background:#fdecea;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600;min-width:96px;text-align:center}
+  .pred{border:1.7px solid var(--pred);background:#eafaef;border-radius:7px 20px 20px 7px;padding:7px 16px 7px 11px;font-size:11.5px;font-weight:700;color:#2e7d32}
+  .act{width:24px;height:24px;border-radius:50%;border:2px solid var(--act);color:var(--act);font-size:12px;font-style:italic;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .actwrap{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .upk{font-size:10px;color:var(--mut);text-align:center;margin:3px 0}
+  .upar{width:0;height:20px;border-left:2px solid var(--line);position:relative;margin:0 0 0 50px}
+  .upar::before{content:"";position:absolute;top:-1px;left:-5px;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:8px solid var(--line)}
+  .ourbadge{font-size:9.5px;color:#fff;background:var(--accent);border-radius:999px;padding:1px 8px;font-weight:700}
+  /* scale ladder (right) */
+  .ladder{display:flex;align-items:stretch;gap:8px}
+  .col{display:flex;flex-direction:column;gap:6px}
+  .scl{border:1.5px solid #6b7a8d;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;text-align:center;min-width:150px;background:#eef2f6}
+  .scl small{display:block;font-size:9.5px;color:var(--mut);font-weight:600;margin-top:1px}
+  .scl.hl{border-color:var(--cell);background:#eaf1fb}
+  .arrows{display:flex;flex-direction:column;justify-content:center;gap:10px;font-size:10.5px;color:var(--mut);font-weight:700}
+  .key{font-size:11.5px;color:var(--ink);background:#fffaf2;border-left:3px solid var(--accent);
+       padding:6px 12px;margin-top:20px;border-radius:0 6px 6px 0;max-width:860px}
+</style>
+</head>
+<body>
+
+<h1>Vision — a hierarchical, cross-scale world model of biology</h1>
+<p class="sub"><b>Biology is multi-scale.</b> Foundation models exist per scale (molecules, sequences, cells, tissues)
+but <b>don't bridge them</b>. A <b>hierarchical JEPA world model</b> (à la LeCun) predicts at each level under an action;
+lower scales <b>inform</b> higher ones and vice-versa (cross-attention compression, à la Xpressor).</p>
+
+<div class="two">
+
+  <!-- LEFT: hierarchical action-conditioned world model -->
+  <div class="panel">
+    <p class="pt">Hierarchical world model — predict-in-latent at every scale</p>
+
+    <!-- top rung: tissue -->
+    <div class="rung">
+      <div class="state">\(z_{\text{tissue}}\)</div>
+      <div class="actwrap"><div class="act">a</div></div>
+      <div class="pred">predict ▸ \(\hat z_{\text{tissue}}'\)</div>
+    </div>
+    <div class="upk">▲ encode / compress</div>
+    <div class="upar"></div>
+
+    <!-- middle rung: cell (OUR model) -->
+    <div class="rung">
+      <div class="state" style="border-color:var(--cell);background:#eaf1fb">\(z_{\text{cell}}\)</div>
+      <div class="actwrap"><div class="upk" style="margin:0">drug</div><div class="act">a</div></div>
+      <div class="pred">predict ▸ \(\hat z_{\text{cell}}'\)</div>
+      <span class="ourbadge">our EB-JEPA</span>
+    </div>
+    <div class="upk">▲ encode / compress</div>
+    <div class="upar"></div>
+
+    <!-- bottom rung: gene/molecule -->
+    <div class="rung">
+      <div class="state" style="border-color:var(--enc);background:#f6f0fa">genes / molecules</div>
+      <div class="pred" style="border-radius:0 0 28px 28px;border-color:var(--enc);background:#f6f0fa;color:var(--enc)">encoder \(f\)</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: biological scale ladder + cross-scale flow -->
+  <div class="panel">
+    <p class="pt">Biological scales &amp; their foundation models</p>
+    <div class="ladder">
+      <div class="col">
+        <div class="scl">Tissues<small>tFM — DINOv2 / spatial</small></div>
+        <div class="scl hl">Cells<small>cFM — scGPT · MosaicFM · scPRINT</small></div>
+        <div class="scl">Genes / RNA / Proteins<small>nFM — ESM2 · NT · HyenaDNA</small></div>
+        <div class="scl">Molecules<small>mFM — SMILES · 3D structure</small></div>
+      </div>
+      <div class="arrows">
+        <div style="color:var(--pred)">↑ compress<br>(informs upper)</div>
+        <div style="color:var(--accent)">↓ context<br>(informs lower)</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="key">Our drug-response model is the <b>cell rung</b> (action = drug). Extensions: a <b>pathway-hierarchical
+encoder</b> (gene → pathway → cell) inside the rung, and <b>cross-scale fine-tuning</b> — feed protein/molecule
+embeddings up into the cell encoder (à la Xpressor) — toward one world model that bridges scales.</div>
+
+</body>
+</html>

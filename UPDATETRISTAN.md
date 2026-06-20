@@ -233,7 +233,40 @@ On évalue **deux choses séparément** :
 | `examples/tahoe/_smoke_ground.py`, `_smoke_perturb.py` | smoke tests synthétiques (passent : `SMOKE OK`) |
 
 ### 10.7 TODO 2-step
-- [ ] **Re-precompute** un cache de perturbation avec **gènes bruts** (paires ctrl/pert) pour brancher E2/E3.
-- [ ] Charger `tahoe_ground.pt` (encodeur étape 1) **gelé** dans `perturb.py` (E3).
+- [x] **Charger `tahoe_ground.pt` gelé dans `perturb.py` (E3) — FAIT.** `model.encoder=settransformer`
+      + `model.ground_ckpt=<tahoe_ground.pt>` : `load_grounded_encoder` reconstruit le SetTransformer
+      (re-register des sources gelées via `source_dims` sauvé par `ground.py`), charge l'EMA `target`,
+      **gèle**, et **pré-encode** les gènes bruts → z ; le world-model (GRU + JEPA.unroll + signature +
+      pathway + OT) tourne ensuite en z-space, inchangé. `encoder=identity` (MosaicFM, E1) reste le défaut.
+      Validé sans download : `make smoke_perturb_e3`. Pathway calculé en **espace-gène** avant encodage.
+- [ ] **Re-precompute** un cache de perturbation avec **gènes bruts** (même panel que `ground`) — c'est le
+      seul prérequis data restant pour lancer E3 sur Dalia (le câblage code est prêt). `precompute_pert.py`
+      lit aujourd'hui des embeddings ; il faut une variante qui stocke `X=[N,K]` gènes + `centroid=[lignes,K]`.
 - [ ] Câbler baselines manquantes : **SetTransformer random-init gelé** (probe) + **régression linéaire** (skill).
-- [ ] Ablation `skill(E1) vs E2 vs E3` + reporter `(F1, skill)` ensemble.
+- [ ] Ablation `skill(E1=MosaicFM) vs E3(SetTransformer grounded gelé)` + reporter `(F1, skill)` ensemble.
+
+---
+
+## 11. Porté depuis eb_jepa (base) — objectif de transport optimal (sliced-Wasserstein)
+
+**Pourquoi.** Tahoe n'a **pas** de paires contrôle/perturbé réelles, seulement les deux
+*distributions*. Notre appariement (DMSO aléatoire / centroïde) est une approximation. `eb_jepa`
+résout ça proprement par **transport optimal** : on matche le nuage **prédit** au nuage **vrai**
+des cellules traitées, par **sliced-Wasserstein** (projection sur N directions aléatoires + distance
+de Wasserstein 1-D triée), **par strate** `(drug, cell_line)` — niveau distribution, pas paire.
+
+**Ce qui a été ajouté (cette session) :**
+| Fichier | Changement |
+|---|---|
+| `eb_jepa/losses.py` | `sliced_wasserstein(pred, target, n_slices, p)` + `grouped_sliced_wasserstein(pred, target, groups)` (porté de `eb_jepa/singlecell/perturbator/losses.py`, dépend de torch seul). |
+| `examples/tahoe/perturb.py` | terme optionnel `loss.ot_coeff` (strate = `drug*n_lines + cell_line`), loggé `ot=…`. `0.0` = comportement pairwise d'origine. |
+| `examples/tahoe/cfgs/perturb.yaml` | `ot_coeff: 0.5`, `ot_slices: 256`. |
+| `examples/tahoe/experiments.py` | variantes d'ablation **`+ot`** et **`full+ot`** (strate = drug). |
+
+**À mesurer (honnête, ablation déjà câblée) :** `full` vs `full+ot` sur le couple **`(probe F1, skill)`**
+× 3 seeds. Hypothèse : l'OT améliore le skill *vs mean-shift* sans dégrader la décodabilité (probe).
+
+**Non porté (volontairement — incompatible avec le design « encoder gelé » sur Dalia) :** transformer
+gène-token from-scratch, embeddings **Evo2 (ADN)** / **ESMC** précalculés (caches lourds + 8×B200),
+étude scaling-laws `sub14`. La modalité **ADN/Evo2** reste le seul vrai différenciateur de la base non
+repris (cf. §1 — notre `SetTransformer` couvre déjà ESM2 + KGE + scGPT côté design).

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tahoe-JEPA — biology losses & action</title>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']]},svg:{fontCache:'global'}};</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root{--ink:#1d2530;--mut:#5f6b7a;--line:#9aa6b2;--data-b:#5b8def;
+        --loss-b:#fb8c00;--drugA:#43a047;--drugB:#5b8def;--mol:#7a5cff;}
+  *{box-sizing:border-box}
+  body{font-family:"Inter",-apple-system,"Helvetica Neue",Arial,sans-serif;color:var(--ink);
+       margin:0;padding:28px 24px;background:#fff;-webkit-font-smoothing:antialiased}
+  .card{border:1.4px solid var(--loss-b);border-radius:14px;background:#fffdf8;padding:12px 16px;margin-bottom:16px;overflow-x:auto}
+  .card.blue{border-color:var(--data-b);background:#f7faff}
+  .ct{font-size:13px;font-weight:700;margin:0 0 10px;white-space:nowrap}
+  .pipe{display:flex;gap:14px;align-items:center;flex-wrap:nowrap;width:max-content}
+  .blk{display:flex;flex-direction:column;align-items:center}
+  .op{border:1.2px solid var(--line);border-radius:8px;background:#f3f5fa;padding:3px 9px;font-size:11px;font-weight:600;white-space:nowrap}
+  .ar{color:var(--line);font-weight:700;font-size:18px}
+  .lab{font-size:11px;color:var(--mut)}
+  .fp{display:flex;gap:2px}
+  .fpcell{width:11px;height:11px;border-radius:2px;border:1px solid #b9c2cc}
+  .fpcell.on{background:#2b3340;border-color:#2b3340}
+  .key{font-size:11.5px;color:var(--ink);background:#fff;border-left:3px solid var(--loss-b);padding:4px 10px;margin-top:10px;border-radius:0 6px 6px 0;white-space:nowrap;overflow-x:auto}
+  .blue .key{border-left-color:var(--data-b)}
+  .formula{font-size:12px;margin:4px 0;white-space:nowrap}
+  .cap{font-size:10px;color:var(--mut);text-align:center;margin-top:3px;line-height:1.25}
+  svg{display:block}
+</style>
+</head>
+<body>
+
+<!-- ① MORGAN -->
+<div class="card blue">
+  <p class="ct">① Morgan fingerprint — the drug action</p>
+  <div class="pipe">
+    <div class="blk">
+      <svg width="54" height="46" viewBox="0 0 56 50"><polygon points="28,6 44,15 44,33 28,42 12,33 12,15" fill="none" stroke="var(--mol)" stroke-width="1.8"/><circle cx="44" cy="15" r="2" fill="var(--mol)"/></svg>
+      <div class="cap">molecule</div>
+    </div>
+    <span class="ar">→</span>
+    <div class="blk">
+      <svg width="56" height="46" viewBox="0 0 60 50"><circle cx="22" cy="25" r="6" fill="none" stroke="var(--mol)" stroke-width="1.4"/><circle cx="22" cy="25" r="13" fill="none" stroke="var(--mol)" stroke-width="1.1" stroke-dasharray="3 2"/><circle cx="22" cy="25" r="19" fill="none" stroke="var(--mol)" stroke-width="1" stroke-dasharray="2 3"/></svg>
+      <div class="cap">substructures</div>
+    </div>
+    <span class="ar">→</span><span class="op">hash</span><span class="ar">→</span>
+    <div class="blk">
+      <div class="fp" id="fp"></div>
+      <div class="cap">\(a\in\{0,1\}^{256}\)</div>
+    </div>
+  </div>
+  <div class="key">Similar molecules ⇒ shared bits ⇒ <b>zero-shot to unseen drugs.</b></div>
+</div>
+
+<!-- ② PATHWAY COHERENCE -->
+<div class="card">
+  <p class="ct">② Pathway-coherence loss — real-biology prior</p>
+  <div class="pipe">
+    <div class="blk"><svg id="memb" width="116" height="94"></svg><div class="cap">gene ∈ Hallmark \([K\!\times\!M]\)</div></div>
+    <span class="ar">→</span>
+    <div class="blk"><div class="formula">\(P=X\tilde M\)</div><svg id="act" width="100" height="94"></svg><div class="cap">activity \([N\!\times\!M]\)</div></div>
+    <span class="ar">→</span>
+    <div class="blk"><svg id="dz" width="62" height="62"></svg><div class="cap">\(D_{\cos}(z)\)</div></div>
+    <span class="ar">≈</span>
+    <div class="blk"><svg id="dp" width="62" height="62"></svg><div class="cap">\(D_{\cos}(P)\)</div></div>
+    <span class="ar">⇒</span>
+    <div class="formula">\(\lVert\widehat{D_{\cos}(z)}-\widehat{D_{\cos}(P)}\rVert^2\)</div>
+  </div>
+  <div class="key">Latent geometry matches 50 curated gene programs — real biology, not noise. <b>GeneJEPA has none.</b></div>
+</div>
+
+<!-- ③ PERTURBATION SIGNATURE -->
+<div class="card">
+  <p class="ct">③ Perturbation-signature loss — drug-specific direction</p>
+  <div class="pipe">
+    <div class="blk">
+      <svg width="176" height="108" viewBox="0 0 180 112">
+        <circle cx="28" cy="86" r="3" fill="var(--mut)"/><text x="12" y="102" font-size="9" fill="var(--mut)">z_ctrl</text>
+        <line x1="28" y1="86" x2="92" y2="28" stroke="var(--drugA)" stroke-width="2.4" marker-end="url(#mA)"/>
+        <line x1="28" y1="86" x2="84" y2="36" stroke="var(--drugA)" stroke-width="2.4" marker-end="url(#mA)"/>
+        <text x="94" y="26" font-size="9" fill="var(--drugA)">drug A</text>
+        <line x1="28" y1="86" x2="146" y2="72" stroke="var(--drugB)" stroke-width="2.4" marker-end="url(#mB)"/>
+        <line x1="28" y1="86" x2="146" y2="82" stroke="var(--drugB)" stroke-width="2.4" marker-end="url(#mB)"/>
+        <text x="148" y="74" font-size="9" fill="var(--drugB)">drug B</text>
+        <defs><marker id="mA" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--drugA)"/></marker>
+        <marker id="mB" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--drugB)"/></marker></defs>
+      </svg>
+      <div class="cap">shift \(\Delta=\hat z_{\text{pert}}-z_{\text{ctrl}}\)</div>
+    </div>
+    <span class="ar">⇒</span>
+    <div class="blk">
+      <div class="formula">\(\mathcal{L}_{\text{sig}}=\operatorname*{mean}_{d_i=d_j}\big(1-\cos(\Delta_i,\Delta_j)\big)\)</div>
+      <div class="lab">same drug → same direction (cos→1)</div>
+    </div>
+  </div>
+  <div class="key">Captures the <b>drug signature</b>, not cell-specific noise.</div>
+</div>
+
+<script>
+  function viridis(t){const s=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];
+    const x=Math.max(0,Math.min(1,t))*(s.length-1),i=Math.floor(x),f=x-i;const a=s[i],b=s[Math.min(i+1,4)];
+    const c=a.map((v,k)=>Math.round(v+(b[k]-v)*f));return`rgb(${c[0]},${c[1]},${c[2]})`;}
+  function grid(id,rows,cols,cw,fn){const g=document.getElementById(id);
+    for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('x',j*cw);r.setAttribute('y',i*cw);r.setAttribute('width',cw-1.5);r.setAttribute('height',cw-1.5);
+      r.setAttribute('rx',2);r.setAttribute('fill',fn(i,j));g.appendChild(r);}}
+  const bits=[1,0,0,1,1,0,1,0,0,1,1,0,0,1,0,1];const fp=document.getElementById('fp');
+  bits.forEach(b=>{const d=document.createElement('div');d.className='fpcell'+(b?' on':'');fp.appendChild(d);});
+  const MB=[[1,0,0,1,0],[1,1,0,0,0],[0,1,0,0,1],[0,0,1,0,1],[1,0,1,0,0],[0,1,0,1,0],[0,0,0,1,1],[1,0,1,0,0]];
+  grid('memb',8,5,12.5,(i,j)=>MB[i][j]?'#2c5f9e':'#e6ebf2');
+  grid('act',8,5,12.5,(i,j)=>viridis(Math.sin((i+1)*(j+2))*0.5+0.5));
+  function dmat(id){grid(id,4,4,14.5,(i,j)=>i===j?'#23304a':viridis(Math.abs(Math.sin((i+1)*(j+2)))*0.8+0.1));}
+  dmat('dz');dmat('dp');
+</script>
+</body>
+</html>
