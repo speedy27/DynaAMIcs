@@ -21,9 +21,9 @@ source "${SLURM_SUBMIT_DIR}/env.sh"
 cd "$EBJEPA_REPO"
 PY="$UV_PROJECT_ENVIRONMENT/bin/python"
 CFG=examples/microbiome_jepa/cfgs/layerA_real.yaml
-ENC=$WORK/checkpoints/microbiome_jepa/realenc_sigreg
 DATA=$EBJEPA_DSETS/susagi/data
 EP=${EP:-100}; NS=${NS:-50000}; DM=${DM:-256}
+ENC=${ENC:-$WORK/checkpoints/microbiome_jepa/realenc_sigreg_d${DM}}   # d_model-specific (no clobber)
 $PY -c "import torch; print('torch', torch.__version__, 'gpu', torch.cuda.get_device_name(0))"
 
 echo "############ pretrain Layer A with SIGReg (BCS), $NS samples, $EP ep, d_model=$DM ############"
@@ -36,5 +36,5 @@ echo "############ probe infant-env: frozen linear + frozen MLP + corpus z-score
 $PY -m examples.microbiome_jepa.realdata --checkpoint $ENC/latest.pth.tar --fname $CFG \
   --data_dir $DATA --d_model $DM --n_max 256 --device cuda --corpus_zscore_n 5000 \
   --finetune True --ft_epochs 50 \
-  --out $WORK/checkpoints/microbiome_jepa/realdata_infants_sigreg
+  --out $WORK/checkpoints/microbiome_jepa/realdata_infants_sigreg_d${DM}
 echo "SIGREG_DONE"
