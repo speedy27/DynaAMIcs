@@ -1,0 +1,178 @@
+{
+  "g4_s24": {
+    "instance": "g4_s24",
+    "knobs": {
+      "n_species": 24,
+      "n_candidate": 24,
+      "n_guilds": 4,
+      "comp_strong": -2.5,
+      "comp_weak": -0.4
+    },
+    "K": 24,
+    "tol": 0.861485920204312,
+    "n_attractors": 4,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "n_episodes": 12,
+    "mean_start_dist": 5.743211307063198,
+    "summary": {
+      "random": {
+        "success_mean": 0.0,
+        "success_se": 0.0,
+        "final_dist": 3.606571920298946
+      },
+      "greedy": {
+        "success_mean": 0.3333333333333333,
+        "success_se": 0.04811252243246882,
+        "final_dist": 2.8123315967679625
+      },
+      "oracle": {
+        "success_mean": 1.0,
+        "success_se": 0.0,
+        "final_dist": 0.647818630103568
+      },
+      "mppi_latent": {
+        "success_mean": 0.8888888888888888,
+        "success_se": 0.07349309197401642,
+        "final_dist": 0.7783451895250977
+      }
+    },
+    "crosses_tol": true,
+    "near_oracle": false
+  },
+  "g3_s18": {
+    "instance": "g3_s18",
+    "knobs": {
+      "n_species": 18,
+      "n_candidate": 18,
+      "n_guilds": 3,
+      "comp_strong": -2.5,
+      "comp_weak": -0.4
+    },
+    "K": 18,
+    "tol": 0.8620071920272387,
+    "n_attractors": 3,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "n_episodes": 12,
+    "mean_start_dist": 5.746714528529379,
+    "summary": {
+      "random": {
+        "success_mean": 0.0,
+        "success_se": 0.0,
+        "final_dist": 3.3230004155086785
+      },
+      "greedy": {
+        "success_mean": 0.4166666666666667,
+        "success_se": 0.0,
+        "final_dist": 2.654326483317451
+      },
+      "oracle": {
+        "success_mean": 1.0,
+        "success_se": 0.0,
+        "final_dist": 0.6102346567302176
+      },
+      "mppi_latent": {
+        "success_mean": 1.0,
+        "success_se": 0.0,
+        "final_dist": 0.7384939164591654
+      }
+    },
+    "crosses_tol": true,
+    "near_oracle": true
+  },
+  "g5_s30": {
+    "instance": "g5_s30",
+    "knobs": {
+      "n_species": 30,
+      "n_candidate": 30,
+      "n_guilds": 5,
+      "comp_strong": -2.5,
+      "comp_weak": -0.4
+    },
+    "K": 30,
+    "tol": 0.8609513318059384,
+    "n_attractors": 5,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "n_episodes": 12,
+    "mean_start_dist": 5.739647359318789,
+    "summary": {
+      "random": {
+        "success_mean": 0.0,
+        "success_se": 0.0,
+        "final_dist": 3.7281309906054534
+      },
+      "greedy": {
+        "success_mean": 0.24999999999999997,
+        "success_se": 0.048112522432468816,
+        "final_dist": 3.024903591358094
+      },
+      "oracle": {
+        "success_mean": 1.0,
+        "success_se": 0.0,
+        "final_dist": 0.6709855531247771
+      },
+      "mppi_latent": {
+        "success_mean": 1.0,
+        "success_se": 0.0,
+        "final_dist": 0.6535316688866414
+      }
+    },
+    "crosses_tol": true,
+    "near_oracle": true
+  },
+  "g3_s24_strongcomp": {
+    "instance": "g3_s24_strongcomp",
+    "knobs": {
+      "n_species": 24,
+      "n_candidate": 24,
+      "n_guilds": 3,
+      "comp_strong": -3.5,
+      "comp_weak": -0.25
+    },
+    "K": 24,
+    "tol": 0.9882272749678667,
+    "n_attractors": 3,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "n_episodes": 12,
+    "mean_start_dist": 6.588181935346204,
+    "summary": {
+      "random": {
+        "success_mean": 0.0,
+        "success_se": 0.0,
+        "final_dist": 4.006665702908082
+      },
+      "greedy": {
+        "success_mean": 0.4166666666666667,
+        "success_se": 0.0,
+        "final_dist": 2.769397954169028
+      },
+      "oracle": {
+        "success_mean": 1.0,
+        "success_se": 0.0,
+        "final_dist": 0.7899847278352179
+      },
+      "mppi_latent": {
+        "success_mean": 0.8888888888888888,
+        "success_se": 0.07349309197401642,
+        "final_dist": 0.952898579233803
+      }
+    },
+    "crosses_tol": true,
+    "near_oracle": false
+  }
+}
