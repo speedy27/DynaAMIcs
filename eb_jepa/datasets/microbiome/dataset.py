@@ -42,6 +42,8 @@ class MicrobiomeConfig:
     val_fraction: float = 0.2
     seed: int = 0
     milk_vocab: Optional[List[str]] = None  # filled at load time
+    fcgr_path: Optional[str] = None  # if set: per-OTU input feature = FCGR image (S*S) instead
+                                     # of the ProkBERT embedding -> the image-JEPA head-to-head
 
 
 def _milk_categories(subjects):
@@ -55,6 +57,15 @@ class MicrobiomeDataset(Dataset):
         blob = torch.load(config.cache_path, weights_only=False)
         self.emb_table = blob["emb_table"].float()  # [U, 384]
         self.subjects = blob["subjects"]
+
+        # per-OTU INPUT feature: ProkBERT embedding (default, the text-JEPA) OR an aligned
+        # FCGR image (the image-JEPA head-to-head). The phylo target stays ProkBERT-based
+        # either way (it's a target, not an input), so the two models are scored identically.
+        if config.fcgr_path:
+            self.feat_table = torch.load(config.fcgr_path, weights_only=False)["fcgr_table"].float()
+        else:
+            self.feat_table = self.emb_table
+        self.feat_dim = int(self.feat_table.shape[1])
 
         # feeding vocabulary -> action one-hot
         self.milk_vocab = config.milk_vocab or _milk_categories(self.subjects)
@@ -99,8 +110,9 @@ class MicrobiomeDataset(Dataset):
         ts = max(1, cfg.tp_stride)
         tps = s["timepoints"][start : start + (cfg.n_window - 1) * ts + 1 : ts]
         T, N, E = cfg.n_window, cfg.n_max, cfg.emb_dim
+        F = self.feat_dim  # input feature dim: ProkBERT 384, or FCGR S*S (e.g. 4096)
 
-        obs = torch.zeros(E + 1, T, N, 1, dtype=torch.float32)
+        obs = torch.zeros(F + 1, T, N, 1, dtype=torch.float32)
         div = torch.zeros(T, dtype=torch.float32)
         phylo = torch.zeros(T, E, dtype=torch.float32)
         act = torch.zeros(self.action_dim, T, dtype=torch.float32)
@@ -114,10 +126,10 @@ class MicrobiomeDataset(Dataset):
                 top = np.argsort(-p)[:N]
                 idx, p = idx[top], p[top]
             n = len(idx)
-            emb = self.emb_table[torch.from_numpy(idx)]  # [n, E]
+            feat = self.feat_table[torch.from_numpy(idx)]  # [n, F]  (ProkBERT vec or FCGR image)
             logab = np.log1p(cfg.abundance_scale * p).astype(np.float32)  # >=0, monotone
-            obs[:E, t, :n, 0] = emb.t()
-            obs[E, t, :n, 0] = torch.from_numpy(logab)
+            obs[:F, t, :n, 0] = feat.t()
+            obs[F, t, :n, 0] = torch.from_numpy(logab)
             div[t] = float(tp["div"])
             phylo[t] = torch.from_numpy(np.asarray(tp["phylo"], dtype=np.float32))
             dt = (tps[t + 1]["age"] - tp["age"]) if t + 1 < len(tps) else 0.0

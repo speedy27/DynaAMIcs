@@ -33,6 +33,7 @@ import torch.nn as nn
 from omegaconf import OmegaConf
 
 from eb_jepa.architectures import (
+    FCGRSetEncoder,
     InverseDynamicsModel,
     Projector,
     RNNPredictor,
@@ -137,7 +138,12 @@ def _feature_stats(loader, emb_dim, device):
 
 def build_jepa(cfg, action_dim, device):
     D = cfg.model.dstc
-    if cfg.model.get("normalize_features", False):
+    enc_kind = cfg.model.get("encoder", "set")
+    if enc_kind == "fcgr":
+        # image-JEPA: each OTU token = an FCGR image of its DNA, read by a CNN.
+        encoder = FCGRSetEncoder(k=cfg.model.get("fcgr_k", 6),
+                                 h_d=cfg.model.get("fcgr_hd", 32), out_d=D)
+    elif cfg.model.get("normalize_features", False):
         encoder = NormSetEncoder(emb_dim=cfg.model.emb_dim, h_d=cfg.model.henc, out_d=D)
     else:
         encoder = SetEncoder(emb_dim=cfg.model.emb_dim, h_d=cfg.model.henc, out_d=D)
@@ -229,6 +235,7 @@ def run(fname, overrides):
         tp_stride=cfg.data.get("tp_stride", 1),
         n_max=cfg.data.n_max, emb_dim=cfg.model.emb_dim,
         val_fraction=cfg.data.val_fraction, seed=cfg.meta.seed,
+        fcgr_path=cfg.data.get("fcgr_path", None),
     )
     train_ds, val_ds, train_loader, val_loader = make_loaders(
         dcfg, batch_size=cfg.data.batch_size, num_workers=cfg.data.num_workers
@@ -238,7 +245,7 @@ def run(fname, overrides):
           f"train_windows={len(train_ds)} val_windows={len(val_ds)} ==")
 
     jepa = build_jepa(cfg, A, device)
-    if cfg.model.get("normalize_features", False):
+    if cfg.model.get("normalize_features", False) and hasattr(jepa.encoder, "set_feature_stats"):
         fmean, fstd = _feature_stats(train_loader, cfg.model.emb_dim, device)
         jepa.encoder.set_feature_stats(fmean, fstd)
         print(f"== feature-norm ON: per-dim z-score | abundance ch mean={fmean[-1]:.2f} std={fstd[-1]:.2f} ==")

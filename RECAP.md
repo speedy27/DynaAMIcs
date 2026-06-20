@@ -13,6 +13,40 @@
 > `Résultats` / `À suivre`. Les sections 0–10 plus bas restent l'**inventaire de
 > référence** (mis à jour quand une brique devient permanente).
 
+### 2026-06-20 · itération 7 — Rapport HTML final Microbiome + Tahoe + pitch 10 minutes
+
+**Ajouté**
+- `artifacts/report/build_research_report.py` — générateur Python du **rapport de recherche HTML**
+  final : structure ESIEE complète (Data → Architecture → Training → Inference → Evaluation),
+  checklist Gold Standard, pitch 10 minutes, processus d'itération, limites honnêtes et références.
+- `artifacts/report/assets/` — 25 PNG copiés/générés : figures microbiome F1–F8 + figures FCGR/
+  Met2Img + figures Tahoe (collapse, skill, UMAP, modules, ablations, scaling/screening).
+- Figures Tahoe générées depuis JSON réels : `tahoe_perturb_ablation.png`,
+  `tahoe_encoder_ablation.png`, `tahoe_scaling_screening.png`.
+
+**Modifié**
+- `artifacts/report/index.html` — remplacé par un rapport **HTML autonome** (20 images inlinées en
+  base64), lisible, clair et orienté jury.
+  Il répond précisément aux demandes : graphiques/représentations Microbiome + Tahoe, architecture,
+  protocole de test, résultats vs baselines, ablations, inference/planning, pitch 10 minutes et références.
+
+**Fait & vérifié**
+- Build : `uv run --no-sync python artifacts/report/build_research_report.py` ✅.
+- Contrôles HTML : 0 placeholder `Figure manquante`, 20 `<img>` intégrées, 0 référence externe
+  `assets/*.png`, sections `Gold Standard`, `Pitch 10 minutes`, `Evaluation Microbiome`,
+  `Evaluation Tahoe` présentes.
+- `get_errors` clean sur le générateur.
+
+**Résultats intégrés**
+- Microbiome : normalisation ON/OFF, bio-loss/no-reg, PCA latents, CV subject-grouped, spectre
+  dynamique, trajectoires, FCGR vs ProkBERT.
+- Tahoe : perturbation skill/ablation, SetTransformer vs MLP, SIGReg collapse, scaling, zero-shot,
+  screening top drugs.
+
+**À suivre**
+- Optionnel : transformer ce rapport en deck `.pptx`/slides 10 min ou ajouter F9 Gingivitis
+  (drop-out/colonise ROC) si le suivi per-OTU est branché.
+
 ### 2026-06-20 · itération 6 — +3 figures (Susagi blog + corpus) : infant CV, spectre, trajectoires
 
 **Ajouté à `examples/microbiome/make_figures.py`** (8 figures au total) :
@@ -423,6 +457,45 @@ Moyenne ± std sur 3 seeds (1 / 1000 / 10000).
 - **Honnête** : l'`age_r2` ≈ 0.41 quelle que soit la condition → c'est la **normalisation** qui porte
   l'age (cf. §7.1) ; les pertes bio portent surtout **dynamique + rang + T1D**. À 50 ép l'age ne
   monte pas vs 30 ép → ~30 ép suffit (léger sur-apprentissage au-delà sur 293 sujets).
+
+---
+
+### 7.3 Head-to-head **texte (ProkBERT) vs image (FCGR)** (job `76274`, 30 ép, 3 seeds)
+
+**Le bon modèle mental (à ne pas confondre).** L'argument JEPA central : on ne change que le
+**front-end** ; l'objectif, le régularizer et le moteur `jepa.py` restent **identiques**.
+
+| Composant | Set-JEPA (microbiome brut) | Image-JEPA (Met2Img) | change ? |
+|---|---|---|---|
+| Input | ensemble d'embeddings OTU | image `[B,C,H,W]` | ✅ |
+| Encodeur | set-transformer | ResNet (CNN, fourni) | ✅ |
+| Prédicteur | masked-set | identité (2-vues) | ✅ |
+| Augmentations | masquage de membres | crops/bruit image | ✅ |
+| Objectif + régularizer | JEPA + VICReg/SIGReg | **identique** | ❌ |
+| Moteur (`jepa.py`) | **identique** | **identique** | ❌ |
+
+**Deux variantes « image » distinctes — ne pas les confondre :**
+- **(a) FCGR-token (ce que j'ai benché)** : chaque OTU → image FCGR → CNN → token, dans le **même
+  pipeline set+temporel (RNNPredictor)** que le texte. C'est un **swap de token-encodeur** propre
+  (= l'intégration actuelle de `examples/microbiome2img/main.py`).
+- **(b) Met2Img-image (la table ci-dessus, cible conceptuelle)** : **un** Met2Img `[B,C,H,W]` par
+  échantillon → **ResNet** → **2-vues** (moteur `examples/image_jepa`). **Pas encore benché.**
+
+**Résultat de (a)** — même communautés, même recette, seul le **token** change :
+
+| token | feature | age_r2 | skill | effrank | tvar | T1D |
+|---|---|---|---|---|---|---|
+| **ProkBERT** (pré-entraîné) | texte | **0.47 ± 0.08** | **1.14 ± 0.11** | **4.4** | 0.030 | **0.77** |
+| **FCGR** (CNN from scratch) | image | -0.01 ± 0.02 | 0.00 | **1.0** ⚠️ | 0.000 | 0.50 |
+
+Figure : [`artifacts/figures/fig4_text_vs_image.png`](artifacts/figures/fig4_text_vs_image.png).
+
+**Lecture honnête :** le **token ProkBERT gagne nettement** ; le **token FCGR a collapsé** (effrank 1.0
+sur 3 seeds). **Mais ce n'est pas la qualité de la feature** : (i) le bench taxonomie montre que la FCGR
+capture bien la phylogénie (~90 %, cf. fig3) ; (ii) le CNN FCGR est appris **from scratch sans le z-score
+par pixel** (le panel `synth.py` z-scoré passe d'effrank **1.0 → 4.6**, cf. §itération 4). Donc :
+**collapse d'entraînement, pas de signal**. Le texte part d'embeddings **pré-entraînés + normalisés** →
+robuste. **Prochaine étape** : (1) z-scorer le panel FCGR réel ; (2) benché la variante (b) Met2Img/ResNet.
 
 ---
 

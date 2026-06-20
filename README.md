@@ -208,3 +208,15 @@ Roadmap & full work log: [`examples/tahoe/NEXT_STEPS.md`](examples/tahoe/NEXT_ST
 **RDKit** · **PBMC3k** (scanpy) · **scGPT / KGE / ESM2 / Evo2** (gene-init sources).
 
 Framework: [eb-JEPA](https://github.com/marinabar/eb_jepa) (encoder / predictor / regularizer / `unroll`).
+
+---
+
+## Where the work lives (branches)
+
+The work is split across branches — pull the right one depending on what you need:
+
+| Branch | What's there |
+|---|---|
+| **`adrien`** (this branch) | the **main** — Tahoe world-model, 2-step grounding, losses, evaluation |
+| **`bnz`** | **microbiome** — a **more advanced architecture** than what's referenced here |
+| **`amine`** | **benchmark / baselines** — the baseline-comparison work |
