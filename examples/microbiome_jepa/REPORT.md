@@ -204,6 +204,36 @@ is faithful for one-step prediction yet not a metric space for multi-step planni
 lever (readout fidelity). The rubric-honest outcome: not an unexplained 0%, but a layered diagnosis that
 isolates the bottleneck to the representation and shows what moves the needle.
 
+## Did a better representation (SIGReg / LeJEPA) fix the weak spots? — MEASURED, mixed (branch `sigreg-rep`)
+Thesis: the three weak spots — M2's AUC-tie, M3's unclosed planning loop, and the tech-invariance loss —
+all bottleneck on the SAME thing, the *representation* (two-view VICReg). The highest-leverage untried
+lever from our own lit review is **SIGReg (LeJEPA)** instead of VICReg (eb_jepa ships it as `BCS`,
+Epps-Pulley isotropy). We swapped VICReg→SIGReg, changing nothing else, and re-measured. One change at a
+time; all numbers seeded.
+
+**M3 geometry gate (`diagnose_planning.py --tag k24_sigreg`) — SIGReg does NOT fix planning geometry.**
+A gLV world model with SIGReg isotropy on the encoder output (`SIGReg_IDM_Sim_Regularizer`):
+
+| K=24 world model | encoder feat_std | latent-cost corr (Pearson/Spearman) | latent rollout divergence |
+|---|---|---|---|
+| VICReg (weak reg) | ~0.01 (squished) | ≈0 / −0.05 | ~0.01 |
+| **SIGReg** | **0.50** (isotropic ✓) | **−0.23 / −0.41** (still not metric) | **0.61** (worse) |
+
+SIGReg did fix the *variance* (feat_std 0.01→0.50 — the latent is now isotropic, not collapsed) but **not
+the metric**: latent distance is still uninformative (corr stayed non-positive), so latent-MPPI would
+still fail. A clean side-finding: SIGReg's spread-out latent is **much harder to roll forward**
+(divergence 0.01→0.61) — VICReg's tiny rollout error was partly an *artifact of latent collapse* (a
+near-constant latent is trivially predictable). Lesson: an isotropic latent is not automatically a
+*plannable* one. (Per our gate rule, corr-not-positive → we stopped the M3 sub-thread.)
+
+**M2 infant-env (frozen probe) — SIGReg looks better, but the fair baseline is pending.** SIGReg
+(100ep/50k/d256): linear 0.514/0.891, **MLP 0.526/0.894** (matches the Susagi MLP 0.527/0.890 on acc,
+beats on AUC), fine-tuned upper bound **0.590/0.918** (exceeds Susagi's reported 0.549/0.912). **Caveat
+(no overclaim):** this is SIGReg-100ep/d256 vs the earlier VICReg-**30ep/d128**; a VICReg-100ep/d256 run
+is in flight to isolate SIGReg-vs-VICReg from the longer/bigger-training effect. **Tech-invariance on the
+SIGReg encoder: PENDING.** We fold a SIGReg result into the headline only if the matched-budget
+comparison shows a real improvement; otherwise it stands as this honest SIGReg-vs-VICReg comparison.
+
 ## Reproducibility
 - One command (GPU): `cd $WORK/eb_jepa && sbatch examples/microbiome_jepa/run_glv_final.sh`
   (3 seeds × {default, collapse} → JSON of every number + the figure).
