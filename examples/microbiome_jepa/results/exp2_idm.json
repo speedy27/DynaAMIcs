@@ -1,0 +1,80 @@
+{
+  "experiment": "EXP2 IDM-reweight self-supervised closure",
+  "metric_coeff": 0,
+  "note": "IDM uses only (z_t,z_{t+1})->action \u2014 self-supervised, no true-state distance. IDM induces a CONTROL metric, not the Euclidean state metric tol is defined on.",
+  "reference_bars": [
+    {
+      "tag": "pure-JEPA idm=1.0 (ref, fails)",
+      "d_model": 128,
+      "mppi_latent_success": 0.0,
+      "mppi_latent_final": 4.531143658506449,
+      "freerun_6step_err": 0.08427272154095893,
+      "latent_spearman": 0.08453076276710987,
+      "recog_guild": 0.89921875,
+      "recog_basin": 0.6895833333333333
+    },
+    {
+      "tag": "HYBRID mc=0.3 (upper bar)",
+      "d_model": 128,
+      "mppi_latent_success": 1.0,
+      "mppi_latent_final": 0.8037561808461082,
+      "freerun_6step_err": 0.2834064230353882,
+      "latent_spearman": 0.9903638472443016,
+      "recog_guild": 0.97109375,
+      "recog_basin": 0.8125
+    }
+  ],
+  "variants": [
+    {
+      "tag": "idm=2",
+      "d_model": 128,
+      "checkpoint": "checkpoints/plan_model_idm_2/latest.pth.tar",
+      "mppi_latent_success": 0.0,
+      "mppi_latent_final": 4.3250526798470865,
+      "mppi_decoded_success": 0.0,
+      "mppi_learned_success": 0.0,
+      "freerun_6step_err": 0.08438951707134645,
+      "one_step_err": 0.07379262149333954,
+      "latent_spearman": -0.016699192299512437,
+      "decode_r2_mlp": 0.9027338624000549,
+      "feat_std": 0.007644393481314182,
+      "recog_guild": 0.89609375,
+      "recog_basin": 0.73125,
+      "head_spearman": 0.532817563813306
+    },
+    {
+      "tag": "idm=5",
+      "d_model": 128,
+      "checkpoint": "checkpoints/plan_model_idm_5/latest.pth.tar",
+      "mppi_latent_success": 0.0,
+      "mppi_latent_final": 4.26275123848916,
+      "mppi_decoded_success": 0.1111111111111111,
+      "mppi_learned_success": 0.0,
+      "freerun_6step_err": 0.09606082514161245,
+      "one_step_err": 0.07976387441158295,
+      "latent_spearman": -0.19617818027884287,
+      "decode_r2_mlp": 0.92689448595047,
+      "feat_std": 0.00914556160569191,
+      "recog_guild": 0.90078125,
+      "recog_basin": 0.725,
+      "head_spearman": 0.7327722116576554
+    },
+    {
+      "tag": "idm=10",
+      "d_model": 128,
+      "checkpoint": "checkpoints/plan_model_idm_10/latest.pth.tar",
+      "mppi_latent_success": 0.0,
+      "mppi_latent_final": 4.381111605127093,
+      "mppi_decoded_success": 0.0,
+      "mppi_learned_success": 0.0,
+      "freerun_6step_err": 0.08564803249823552,
+      "one_step_err": 0.07686667144298553,
+      "latent_spearman": -0.3127495850396315,
+      "decode_r2_mlp": 0.889319896697998,
+      "feat_std": 0.0075523993000388145,
+      "recog_guild": 0.8875,
+      "recog_basin": 0.6958333333333333,
+      "head_spearman": 0.7391888995156289
+    }
+  ]
+}
