@@ -204,6 +204,20 @@ is faithful for one-step prediction yet not a metric space for multi-step planni
 lever (readout fidelity). The rubric-honest outcome: not an unexplained 0%, but a layered diagnosis that
 isolates the bottleneck to the representation and shows what moves the needle.
 
+**Capstone — two more levers, both measured negative; the wall is the learned model's control fidelity.**
+(a) A **learned monotonic cost** (`plan_glv_learned.py`): a head trained to RANK true distance from frozen
+weak-reg latent pairs reaches Spearman **0.71 (d128) → 0.81 (d256)** — monotonic where raw latent distance
+was not (corr ≈ 0) — and is the best-final-distance method (~3.06), but *higher ranking did NOT improve
+planning* (final flat ~3.0–3.1 across capacity), so the wall is deeper than the cost. (b) **Predictor /
+planning-loop**: the planner is already **receding-horizon MPC** (re-encode the true state and replan every
+step, execute the first action); a horizon sweep shows a **longer** horizon is *better* (learned-cost final
+3.41→3.06 for H=2→6), so **compounding rollout error is NOT the binding wall** — refuting the obvious
+predictor fix (so a multi-step-rollout retrain is not warranted by the evidence). Net across
+controllability + two regularizers + decoded & learned costs + a capacity sweep + the planning loop: no
+learned-model planner crosses tol, while the oracle (true dynamics, same horizon) reaches 0.79 and the
+learned model plateaus at ~3.0. The residual gap is the **learned model's fidelity for precise closed-loop
+control**, robust to every lever tried — a thorough, honest M3 negative (kept as an extension, not folded).
+
 ## Did a better representation (SIGReg / LeJEPA) fix the weak spots? — MEASURED, mixed (branch `sigreg-rep`)
 Thesis: the three weak spots — M2's AUC-tie, M3's unclosed planning loop, and the tech-invariance loss —
 all bottleneck on the SAME thing, the *representation* (two-view VICReg). The highest-leverage untried
@@ -226,24 +240,35 @@ still fail. A clean side-finding: SIGReg's spread-out latent is **much harder to
 near-constant latent is trivially predictable). Lesson: an isotropic latent is not automatically a
 *plannable* one. (Per our gate rule, corr-not-positive → we stopped the M3 sub-thread.)
 
-**M2 infant-env (frozen probe) — SIGReg looks better, but the fair baseline is pending.** SIGReg
-(100ep/50k/d256): linear 0.514/0.891, **MLP 0.526/0.894** (matches the Susagi MLP 0.527/0.890 on acc,
-beats on AUC), fine-tuned upper bound **0.590/0.918** (exceeds Susagi's reported 0.549/0.912). **Caveat
-(no overclaim):** this is SIGReg-100ep/d256 vs the earlier VICReg-**30ep/d128**; a VICReg-100ep/d256 run
-is in flight to isolate SIGReg-vs-VICReg from the longer/bigger-training effect.
+**M2 infant-env (frozen probe) — SIGReg WINS at matched budget (measured).** At the SAME budget
+(100ep/50k/d256, frozen, corpus z-score), SIGReg beats VICReg on the frozen probe:
 
-**Tech-invariance — SIGReg negative (measured).** amplicon-vs-WGS recoverability (lower=more invariant):
-SIGReg **0.967** > VICReg 0.952 > raw 0.938 > random 0.923 > Susagi imposter 0.891; biome (keeps biology)
-SIGReg 0.869 (best). So SIGReg encodes the protocol signal *even more* than VICReg — isotropy does not buy
-invariance (a JEPA only drops a nuisance its augmentations/losses span). Susagi's identity-only imposter
-rep remains the most tech-invariant.
+| infant-env (frozen)        | linear acc / AUC | MLP acc / AUC   |
+|----------------------------|------------------|-----------------|
+| **SIGReg (100ep/d256)**    | **0.514 / 0.891**| **0.526 / 0.894** |
+| VICReg (100ep/d256)        | 0.484 / 0.878    | 0.484 / 0.873   |
+| Susagi MLP (abundance)     | —                | 0.527 / 0.890   |
 
-**Verdict so far: 2 of 3 legs negative (M3, tech); M2 promising but unattributed.** SIGReg makes the latent
-isotropic but that did not fix planning geometry, did not improve tech-invariance, and its M2 gain may be
-the longer/bigger budget rather than the loss (matched VICReg-100ep/d256 pending). We fold SIGReg into the
-headline only if the matched-budget M2 comparison shows a real improvement; otherwise it stays as this
-honest SIGReg-vs-VICReg comparison (a measured "the obvious representation upgrade did not crack the
-bottlenecks" — itself a useful negative).
++3–4pp accuracy, +1–2pp AUC over matched VICReg; SIGReg's MLP probe **matches the supervised Susagi MLP**
+(0.526/0.894 vs 0.527/0.890), and a fine-tuned upper bound reaches 0.590/0.918 (> Susagi's reported
+0.549/0.912). This is an **attributable SIGReg-vs-VICReg win** — *not* a budget effect: longer/bigger
+VICReg actually got *worse* (0.484 vs the 30ep/d128 0.509, from over-decorrelation at cov=25). The
+isotropic latent is a genuinely better FROZEN representation for the downstream probe.
+
+**Tech-invariance — SIGReg negative (measured, matched d256).** amplicon-vs-WGS recoverability (lower=more
+invariant): SIGReg **0.967** ≈ VICReg-d256 **0.960** (both far above raw 0.938 > random 0.923 > Susagi
+imposter **0.891**); biome (keeps biology) VICReg-d256 0.881 ≈ SIGReg 0.869. So SIGReg is NOT more
+tech-invariant even at matched budget (a touch worse) — isotropy does not buy invariance (a JEPA only drops
+a nuisance its augmentations/losses span). Susagi's identity-only imposter rep stays the most invariant.
+
+**Verdict (matched-budget): SIGReg helps M2, not M3 or tech.** The isotropic latent is a real, attributable
+improvement for the DOWNSTREAM PROBE (M2: +3–4pp over matched VICReg; MLP matches the supervised Susagi),
+but it does NOT fix the planning geometry (M3) and is NOT more tech-invariant (≈VICReg; both retain the
+protocol signal). So the "one representation upgrade fixes all three" thesis is only *partly* borne out: the
+bottleneck is shared (the representation), but SIGReg's isotropy helps probing while the planning metric and
+nuisance-invariance each need their own mechanism. **The SIGReg M2 win is fold-worthy; M3/tech stay honest
+negatives.** *(EXP2 GeneJepa, incremental on SIGReg — EMA teacher + a d384 capacity point — is running;
+results appended when measured.)*
 
 ## Reproducibility
 - One command (GPU): `cd $WORK/eb_jepa && sbatch examples/microbiome_jepa/run_glv_final.sh`

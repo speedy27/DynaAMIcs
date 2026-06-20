@@ -1,0 +1,1871 @@
+{
+  "checkpoint": "checkpoints/plan_model_k24_lowreg/latest.pth.tar",
+  "action_dim": 24,
+  "tol": 0.9957860399240593,
+  "head": {
+    "head_spearman_heldout": 0.709892402984964,
+    "n_train_states": 6400,
+    "steps": 3000,
+    "hidden": 256
+  },
+  "decoder_r2": {
+    "linear": 0.8424660563468933,
+    "mlp": 0.8926520347595215
+  },
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "n_episodes": 12,
+  "mpc_steps": 20,
+  "mppi_cfg": {
+    "horizon": 3,
+    "n_samples": 128,
+    "n_elites": 16,
+    "n_iters": 3,
+    "temperature": 1.0,
+    "init_std": 0.25,
+    "min_std": 0.02,
+    "cumulative": true
+  },
+  "summary": {
+    "random": {
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist": 3.992179590106927,
+      "mean_best_dist": 3.5788135513820882,
+      "mean_start_dist": 6.63857364863719
+    },
+    "greedy": {
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist": 3.2580664393348524,
+      "mean_best_dist": 3.2580184066888074,
+      "mean_start_dist": 6.63857364863719
+    },
+    "mppi_latent": {
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist": 4.5327829360014835,
+      "mean_best_dist": 4.414527852749614,
+      "mean_start_dist": 6.63857364863719
+    },
+    "mppi_decoded": {
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist": 2.8374666436134044,
+      "mean_best_dist": 2.5195744144640733,
+      "mean_start_dist": 6.63857364863719
+    },
+    "mppi_learned": {
+      "success_rate_mean": 0.0,
+      "success_rate_se": 0.0,
+      "mean_final_dist": 3.228523727917324,
+      "mean_best_dist": 2.9772993897875013,
+      "mean_start_dist": 6.63857364863719
+    }
+  },
+  "records": [
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.735787570349907,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.3842016446703376,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.3298644193521656,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.3298644193521656,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.567502079866692,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.398573586780238,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.1566423067191427,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.1566423067191427,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.759026838525131,
+      "start_dist": 6.638573648645101,
+      "best_dist": 2.648506369061633,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.873828236359165,
+      "start_dist": 6.638573648645103,
+      "best_dist": 3.564659235980463,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.3150965188078472,
+      "start_dist": 6.638573648645103,
+      "best_dist": 1.3150965188078472,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.596922197653461,
+      "start_dist": 6.638573648645103,
+      "best_dist": 4.489818130250539,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.648663263198484,
+      "start_dist": 6.638573648645103,
+      "best_dist": 2.0567363036741124,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.614949114335231,
+      "start_dist": 6.638573648645103,
+      "best_dist": 2.614949114335231,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.870735546212777,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.8612111994969305,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.633886946017364,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.633886946017364,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.399299125751554,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.174321620934827,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.5737632216000637,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.391513173153874,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 3.4138335196222265,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.2798002990334982,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.067794820528223,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.795532989387457,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.63076184309905,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.63076184309905,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.48169727869333,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.28991990919043,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.992305018551765,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 2.992305018551765,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 3.071746429734589,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 2.8044434017938733,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.226890671045891,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.37127459024758,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.3186158977067326,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.3186158977067326,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.406865685099737,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.069114535837771,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.3344512542283073,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.8286572391465088,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.087484444678387,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.57261918366171,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.853906038758303,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.639047143218984,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.659143221903742,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.659143221903742,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.724171086180565,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.689270097381353,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 1.373896749847354,
+      "start_dist": 6.63857364863154,
+      "best_dist": 1.373896749847354,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.326966518308301,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.257175933111459,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.753975372460854,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.753975372460854,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.615140492633553,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.615140492633553,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 5.019259981233829,
+      "start_dist": 6.63857364863154,
+      "best_dist": 5.019259981233829,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.2928755573264197,
+      "start_dist": 6.63857364863154,
+      "best_dist": 2.2928755573264197,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.430126186520971,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.907599060851239,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.8810192993925368,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.4554929722887144,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.3121930634299426,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.3121930634299426,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.110774538992939,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.110774538992939,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.8371067210567706,
+      "start_dist": 6.638573648645101,
+      "best_dist": 2.8371067210567706,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.5506823329378294,
+      "start_dist": 6.638573648645101,
+      "best_dist": 2.5506823329378294,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.740739266971029,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.5628972804179355,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.646545249069511,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.646545249069511,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.57882204344601,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.57882204344601,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.6767419604166798,
+      "start_dist": 6.63857364863154,
+      "best_dist": 2.6209157228863242,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.295185198667511,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.924185980934247,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.193548006928484,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.7931473305122556,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.658194616925864,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.658194616925864,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.891291359617005,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.891291359617005,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.5915804848221473,
+      "start_dist": 6.63857364863154,
+      "best_dist": 2.283673448630854,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.071893539449,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.071893539449,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.7847839227579505,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.506919320732834,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.3174841643786415,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.3174841643786415,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.536630426634992,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.286807781877943,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.4412860731002883,
+      "start_dist": 6.638573648645101,
+      "best_dist": 2.166902286415883,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.2378179249679215,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.199974935432467,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 0,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.014896744216004,
+      "start_dist": 6.638573648631542,
+      "best_dist": 3.484669509451574,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 0,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.646474346682214,
+      "start_dist": 6.638573648631542,
+      "best_dist": 4.646474346682214,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 0,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.479185890400985,
+      "start_dist": 6.638573648631542,
+      "best_dist": 4.416055867409936,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 0,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.9811498774141443,
+      "start_dist": 6.638573648631542,
+      "best_dist": 1.978059250773366,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 0,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 3.237676217306287,
+      "start_dist": 6.638573648631542,
+      "best_dist": 2.9630766123221486,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.948487036918988,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.9182524050450764,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.687309017187541,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.687309017187541,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.702581903945639,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.6142072875048195,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.786012524810349,
+      "start_dist": 6.63857364863154,
+      "best_dist": 2.580111508720891,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 3.9667141233831615,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.899737678485779,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.961240171037763,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.5686341926152556,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.3125792556292484,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.3125792556292484,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.377203590235489,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.256796544803906,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.708220801882975,
+      "start_dist": 6.638573648645101,
+      "best_dist": 2.708220801882975,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.4776146209868855,
+      "start_dist": 6.638573648645101,
+      "best_dist": 2.203805073746376,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.992067541997775,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.7300183431821923,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.683414424173832,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.683414424173832,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.53458568864895,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.295796311201313,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.4081104845827754,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.094692091171493,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.494615146367496,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 2.3169370789293926,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.166251236229125,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.1995351996503896,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.2981012979503774,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.2981012979503774,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.238736003048432,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.063601408571895,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.8547961421388517,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.366731075579894,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 1.9901742214216034,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.9901742214216034,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.263243324825453,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.708542016564019,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.667273013573441,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.665649787630862,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.483726798344445,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.459974686828672,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.6379839227449637,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.6379839227449637,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.6968337853139586,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 2.5451860521237704,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.329095984177907,
+      "start_dist": 6.638573648631542,
+      "best_dist": 3.7465245767265127,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.627274596389818,
+      "start_dist": 6.638573648631542,
+      "best_dist": 4.627274596389818,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.671034116428745,
+      "start_dist": 6.638573648631542,
+      "best_dist": 4.665568091131417,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.72512592142776,
+      "start_dist": 6.638573648631542,
+      "best_dist": 2.0452264516985523,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.7122575614934363,
+      "start_dist": 6.638573648631542,
+      "best_dist": 2.463016044150122,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.216989151303973,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.569890873302696,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.289426947887015,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.289426947887015,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.266175265128923,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.203866387968944,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.437928313635671,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.79000943361685,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.084642662628597,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.082305692165309,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.140582403311549,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.7369884149652086,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.650481760143369,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.650481760143369,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.275026270983993,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.068442625458137,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.254163882697165,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.1002275887301867,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.3054786044238775,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 2.3054786044238775,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.989473735756103,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.7013791969087015,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.619364771498256,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.619364771498256,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.492120130694936,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.492120130694936,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.307861903018813,
+      "start_dist": 6.63857364863154,
+      "best_dist": 2.307861903018813,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.369790584863601,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.060864118805832,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.177780888529378,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.4908362908960746,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.666539277770301,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.666539277770301,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.4520089795064255,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.41026811644421,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.4748345355767203,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.2922910132659715,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.70165972830615,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 2.70165972830615,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.8786746395969183,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.2629913708024847,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.302483227812185,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.302483227812185,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.329469571022845,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.9451226941979227,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.6229072718745146,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.6026079037648318,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 1.9320889244641462,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.7712965347956482,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.082257830788544,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.2826126033975007,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.2991130519410563,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.2991130519410563,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.572851405101652,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.235553716120734,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.518722777465792,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.5185606124288094,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 1,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.2248758084628446,
+      "start_dist": 6.638573648645101,
+      "best_dist": 2.2248758084628446,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.027255574951278,
+      "start_dist": 6.638573648631542,
+      "best_dist": 3.705820988141502,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.655450221709109,
+      "start_dist": 6.638573648631542,
+      "best_dist": 4.655450221709109,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.692828784479954,
+      "start_dist": 6.638573648631542,
+      "best_dist": 4.692828784479954,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.2835601000654346,
+      "start_dist": 6.638573648631542,
+      "best_dist": 2.12850316602231,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 3.0341966279800543,
+      "start_dist": 6.638573648631542,
+      "best_dist": 3.0341966279800543,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.9495434598328094,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.7499958867449927,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.617307182832204,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.617307182832204,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.553465503840836,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.3647361583067505,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.5905607439554164,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.234329813984668,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.7757101929198655,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 2.61284694622458,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.084773240317259,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.4177085316123046,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.6390464411715255,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.6390464411715255,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.76980575724067,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.727405465085156,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.6296677289996353,
+      "start_dist": 6.63857364863154,
+      "best_dist": 2.2391765522187623,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.39706466262299,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.287488601274638,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.6589755108376454,
+      "start_dist": 6.638573648645103,
+      "best_dist": 3.1067636412451867,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.2860508659013956,
+      "start_dist": 6.638573648645103,
+      "best_dist": 1.2860508659013956,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.419755786196022,
+      "start_dist": 6.638573648645103,
+      "best_dist": 4.379866871708643,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.931010579281088,
+      "start_dist": 6.638573648645103,
+      "best_dist": 1.9922860598046057,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.9896918993689234,
+      "start_dist": 6.638573648645103,
+      "best_dist": 2.799964523585488,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.019540689696881,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.842720509557023,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.658849704260299,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.65874375494525,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.751986248697348,
+      "start_dist": 6.63857364863154,
+      "best_dist": 4.642237697651087,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.1816578604644894,
+      "start_dist": 6.63857364863154,
+      "best_dist": 2.1816578604644894,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.208328650138929,
+      "start_dist": 6.63857364863154,
+      "best_dist": 3.9346949336604493,
+      "src": 1,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.7936835983815507,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.3799546692551377,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.3185202806453045,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.3185202806453045,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.370391256003817,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.193499182736636,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.761705806480213,
+      "start_dist": 6.638573648645101,
+      "best_dist": 2.3731042348735496,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 1.8432168289888875,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.758657407626323,
+      "src": 2,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.8304676019970856,
+      "start_dist": 6.638573648631542,
+      "best_dist": 3.741176476498598,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.649417056994062,
+      "start_dist": 6.638573648631542,
+      "best_dist": 4.649417056994062,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.729070883809846,
+      "start_dist": 6.638573648631542,
+      "best_dist": 4.600647083049892,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.2125067883853458,
+      "start_dist": 6.638573648631542,
+      "best_dist": 2.0105725859054036,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 3.137153704858997,
+      "start_dist": 6.638573648631542,
+      "best_dist": 3.1042592264800044,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.1708459692316255,
+      "start_dist": 6.638573648631542,
+      "best_dist": 3.7199078914945853,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.647389909914105,
+      "start_dist": 6.638573648631542,
+      "best_dist": 4.647389909914105,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.679969887926291,
+      "start_dist": 6.638573648631542,
+      "best_dist": 4.637285966923929,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.346181252009766,
+      "start_dist": 6.638573648631542,
+      "best_dist": 2.0861799797825293,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 3.2681540258421533,
+      "start_dist": 6.638573648631542,
+      "best_dist": 2.976136784740695,
+      "src": 2,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.141741204439186,
+      "start_dist": 6.638573648645103,
+      "best_dist": 3.525936408234636,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.3361212222300307,
+      "start_dist": 6.638573648645103,
+      "best_dist": 1.3361212222300307,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.616826420537931,
+      "start_dist": 6.638573648645103,
+      "best_dist": 4.497624792460606,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.151253253482966,
+      "start_dist": 6.638573648645103,
+      "best_dist": 1.939648987834366,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.4131538362727496,
+      "start_dist": 6.638573648645103,
+      "best_dist": 2.4131538362727496,
+      "src": 1,
+      "tgt": 0
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 4.16874188796188,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.5423725867419087,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.2990784475892303,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.2990784475892303,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.391657016391228,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.283682215154373,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 1.5264109147218847,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.378072469014972,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.123712535761793,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.0847786507793113,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.965370405519588,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.585375678877203,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 1.339089736460322,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.339089736460322,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.446464136704592,
+      "start_dist": 6.638573648645101,
+      "best_dist": 4.3659917967209205,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 2.379411875370067,
+      "start_dist": 6.638573648645101,
+      "best_dist": 1.7274185098403527,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 4.229670923261874,
+      "start_dist": 6.638573648645101,
+      "best_dist": 3.1285587239495003,
+      "src": 0,
+      "tgt": 2
+    },
+    {
+      "seed": 2,
+      "method": "random",
+      "success": false,
+      "final_dist": 3.7634766602279774,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.430320508430058,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "greedy",
+      "success": false,
+      "final_dist": 4.657309324384045,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.657309324384045,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "mppi_latent",
+      "success": false,
+      "final_dist": 4.570022597563274,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 4.411849230828416,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "mppi_decoded",
+      "success": false,
+      "final_dist": 3.5177412967283286,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 3.389920616154039,
+      "src": 0,
+      "tgt": 1
+    },
+    {
+      "seed": 2,
+      "method": "mppi_learned",
+      "success": false,
+      "final_dist": 2.7526662798372894,
+      "start_dist": 6.6385736486315405,
+      "best_dist": 2.687798371035212,
+      "src": 0,
+      "tgt": 1
+    }
+  ]
+}
