@@ -230,10 +230,23 @@ encoder + cost, pure JEPA). Over 4 rounds the planner-traj error stays **flat (~
 round**, and final distance does not improve (final 3-seed 0% / 4.70). Telling detail: a fresh 1-step-MSE
 predictor has *lower* 1-step error (0.135) than the original (0.264) yet plans *worse* (3.49 vs 3.06) — so
 **1-step accuracy is not the binding constraint; multi-step rollout quality for MPPI is**, and on-policy
-1-step data does not supply it. Conclusion: across controllability, regularizers, costs, capacity, the
-planning loop, **ensemble pessimism, and on-policy model learning**, nothing crosses tol — the M3 negative
-is exhaustively diagnosed (the gap is the learned model's *multi-step* control fidelity), kept honest, not
-folded as a positive.
+1-step data does not supply it. (e) **Multi-step free-running rollout loss** (`m3_multistep.py`) — the
+exposure-bias fix: retrain the predictor to match the true k=6-step latent trajectory in FREE-RUNNING mode
+(feeding its own predictions; scheduled sampling). It works as designed — held-out free-running 6-step
+error drops **0.611 → 0.086 (−86%)** and 1-step **0.237 → 0.072** — the model now rolls forward
+near-perfectly. **Yet planning still does not cross tol (0% / final ~4.1).** Closing the multi-step gap
+gives NO planning benefit, which **definitively exonerates the dynamics model (1-step AND multi-step).**
+
+**Final M3 conclusion (exhaustive).** Across controllability, two regularizers, decoded + learned costs, a
+capacity sweep, the planning loop, ensemble pessimism, on-policy model learning, AND a multi-step
+free-running rollout objective, **no learned-model planner crosses tol** (oracle reaches 0.79 at the same
+horizon). The decisive evidence: a *near-perfect free-running model* (0.086 rollout error) plans no better —
+so the wall is **NOT the dynamics model, exploitation, distribution shift, controllability, or compounding
+error** (all measured and ruled out). The residual bottleneck is the **precision of the latent planning
+cost**: the frozen encoder's representation supports only a coarse cost (rank Spearman ~0.81 / decode
+R² ~0.89) — enough to move "closer" but not to target within tol, where the oracle's true-state cost
+reaches 0.79. M3 is a thorough, honestly-bounded negative; the route to closing it is a representation whose
+latent *metric* (not just its predictability) is precise enough — kept as an extension, not folded.
 
 ## Did a better representation (SIGReg / LeJEPA) fix the weak spots? — MEASURED, mixed (branch `sigreg-rep`)
 Thesis: the three weak spots — M2's AUC-tie, M3's unclosed planning loop, and the tech-invariance loss —
