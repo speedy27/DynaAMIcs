@@ -99,7 +99,8 @@ class GLV_Net:
         X, Y = np.array(X, np.float32), np.array(Y, np.float32)
         self._sc_x = StandardScaler().fit(X); self._sc_y = StandardScaler().fit(Y)
         self._mlp = MLPRegressor(
-            (self.hidden, self.hidden), max_iter=self.max_iter, alpha=self.alpha, random_state=0
+            hidden_layer_sizes=(self.hidden, self.hidden),
+            max_iter=self.max_iter, alpha=self.alpha, random_state=0,
         ).fit(self._sc_x.transform(X), self._sc_y.transform(Y))
 
     def predict_step(self, x, action):
