@@ -290,19 +290,26 @@ cost — reaches 100% at final 0.804, **matching the oracle's 0.79**. The pure-J
 planner. This confirms the M3 diagnosis exactly: the wall was the latent metric, and supplying it closes the
 loop.
 
-**The cost is ROLLOUT, not cost geometry, and not recognition** (`metric_coeff` sweep + `m3_recognition.py`;
+**The binding tension is metric-fidelity vs rollout-PREDICTABILITY — not metric vs cost-geometry, and not
+metric vs recognition** (`metric_coeff` sweep, all the FULL eval: 3 seeds × 12 episodes; + `m3_recognition.py`;
 figure `results/metric_hybrid.png`):
-- *Sweep:* the cost geometry saturates (Spearman 0.99 at mc∈{0.3,1.0,3.0}), but free-running rollout error
-  grows 0.283→0.365→0.415, and raw-latent planning success erodes 100%→97%→92%. **mc=0.3 is the sweet spot**
-  (best metric, least rollout damage). So the binding tension is the metric-vs-predictability of the latent,
-  exactly the "faithful-for-1-step ≠ metric-space" lesson, now seen from the other side.
-- *Recognition tradeoff (the "M2 impact", measured on the gLV encoder):* the thesis expected metric-
-  preservation to trade away abstraction and **hurt** recognition. It does **not** — a linear probe on the
-  frozen latent **improves** with the metric: dominant-guild 0.899→0.971, basin-of-attraction 0.690→0.812
-  (mc=0.3; gains hold at all coeffs). On the gLV the true-state metric and the categorical/topological
-  community structure are *aligned*, so no recognition cost appears here. We report this honestly: the
-  predicted recognition tradeoff is **refuted on this sim**; the price of the metric latent is rollout
-  fidelity alone.
+- *Sweep — higher `metric_coeff` erodes planning SUCCESS, not just rollout fidelity.* The cost geometry
+  saturates (latent-vs-true Spearman ~0.99 at mc∈{0.3,1.0,3.0}), but as the metric weight rises the latent
+  gets harder to roll forward (free-running 6-step rollout error 0.283→0.365→0.415) and **raw-latent planning
+  success falls with it: 100.0%→97.2%→91.7%** (final 0.804→0.840→0.866). So success tracks rollout-
+  predictability, not the (already-saturated) cost. This is the exact mirror of the "faithful-for-1-step ≠
+  metric-space" lesson: forcing the latent to be a metric makes it *less predictable*. **mc=0.3 is the sweet
+  spot** — best metric, least rollout damage, highest success.
+- *Recognition (the "M2 impact", measured on the gLV encoder) — the predicted tradeoff is REFUTED here.* The
+  thesis expected metric-preservation to trade away abstraction and **hurt** recognition. It does **not**: a
+  linear probe on the frozen latent **improves** with the metric at every coeff — dominant-guild 0.899→0.971,
+  basin-of-attraction 0.690→0.812 (mc=0.3). On the gLV these labels are clean *functions of the state* (guild
+  dominance / which attractor it relaxes to), so a more state-metric latent is *more* linearly decodable, not
+  less. Recognition also **peaks at mc=0.3** and edges down at higher weight (basin 0.812→0.771 at mc=1.0), so
+  mc=0.3 is the sweet spot on recognition too — not just planning. **Caveat (sim-specific):** this absence of a
+  recognition cost is because the gLV labels are aligned with the state metric; on REAL data, where labels need
+  not align with abundance-Euclidean distance, forcing the metric could plausibly cost recognition — untested
+  here.
 
 **Honest scope.** This is a HYBRID result: the isometry term needs true-state distances, which exist only in
 the simulator. It does **not** make pure JEPA close the loop (that negative stands) — it shows *what the
