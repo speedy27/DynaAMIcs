@@ -1,0 +1,48 @@
+{
+  "rounds": [
+    {
+      "round": 0,
+      "train_mse": 4.6826356992824e-05,
+      "n_train": 4608,
+      "err_on_planner_traj": 0.13782936284939448,
+      "success_rate": 0.0,
+      "mean_final_dist": 3.491333684210846
+    },
+    {
+      "round": 1,
+      "train_mse": 4.9095138820121065e-05,
+      "n_train": 4848,
+      "err_on_planner_traj": 0.1413308438534538,
+      "success_rate": 0.0,
+      "mean_final_dist": 4.036190224255793
+    },
+    {
+      "round": 2,
+      "train_mse": 5.112361395731568e-05,
+      "n_train": 5088,
+      "err_on_planner_traj": 0.13552825013175607,
+      "success_rate": 0.0,
+      "mean_final_dist": 4.2680155515778795
+    },
+    {
+      "round": 3,
+      "train_mse": 6.018739804858342e-05,
+      "n_train": 5328,
+      "err_on_planner_traj": 0.13522648320843775,
+      "success_rate": 0.0,
+      "mean_final_dist": 4.4191684938905675
+    }
+  ],
+  "final_success_rate": 0.0,
+  "final_mean_dist": 4.698454782801639,
+  "final_seeds": [
+    0,
+    1,
+    2
+  ],
+  "tol": 0.9957860399240593,
+  "crossed_tol": false,
+  "verdict": "on-policy lowers error but does NOT cross tol -> even more thorough M3 negative",
+  "baseline_learned_cost_final": 3.06,
+  "oracle_final": 0.79
+}

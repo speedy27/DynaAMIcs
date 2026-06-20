@@ -218,6 +218,23 @@ learned-model planner crosses tol, while the oracle (true dynamics, same horizon
 learned model plateaus at ~3.0. The residual gap is the **learned model's fidelity for precise closed-loop
 control**, robust to every lever tried — a thorough, honest M3 negative (kept as an extension, not folded).
 
+**Model-fidelity push — exploitation AND distribution shift both ruled out (`m3_ensemble_gate.py`,
+`m3_onpolicy.py`).** Two more targeted levers, both MEASURED negative. (c) **Is it model exploitation
+(epistemic)?** A 5-predictor ensemble *agrees* on the planner's OOD error (disagreement uniform along
+trajectories, corr-with-error only 0.38, far-from-target 0.011 ≈ near 0.011) — so pessimistic/uncertainty
+planning has little to grab; the error is structural, not an exploited pocket. (d) **Is it distribution
+shift?** The predictor's 1-step error is **0.072 on its training distribution vs 0.264 on the planner's OOD
+trajectories (3.7×)** — shift is real — so we ran **iterative on-policy model learning** (MBPO-style; plan →
+execute on the true gLV → aggregate the planner's own trajectories → retrain the latent predictor; frozen
+encoder + cost, pure JEPA). Over 4 rounds the planner-traj error stays **flat (~0.135)**, success **0% every
+round**, and final distance does not improve (final 3-seed 0% / 4.70). Telling detail: a fresh 1-step-MSE
+predictor has *lower* 1-step error (0.135) than the original (0.264) yet plans *worse* (3.49 vs 3.06) — so
+**1-step accuracy is not the binding constraint; multi-step rollout quality for MPPI is**, and on-policy
+1-step data does not supply it. Conclusion: across controllability, regularizers, costs, capacity, the
+planning loop, **ensemble pessimism, and on-policy model learning**, nothing crosses tol — the M3 negative
+is exhaustively diagnosed (the gap is the learned model's *multi-step* control fidelity), kept honest, not
+folded as a positive.
+
 ## Did a better representation (SIGReg / LeJEPA) fix the weak spots? — MEASURED, mixed (branch `sigreg-rep`)
 Thesis: the three weak spots — M2's AUC-tie, M3's unclosed planning loop, and the tech-invariance loss —
 all bottleneck on the SAME thing, the *representation* (two-view VICReg). The highest-leverage untried
