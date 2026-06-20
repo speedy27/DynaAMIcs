@@ -18,11 +18,13 @@ source "${SLURM_SUBMIT_DIR}/env.sh"
 cd "$EBJEPA_REPO"
 PY="$UV_PROJECT_ENVIRONMENT/bin/python"
 CFG=examples/microbiome_jepa/cfgs/layerA_real.yaml
-ENC=$WORK/checkpoints/microbiome_jepa/realenc
+ENC=${ENC:-$WORK/checkpoints/microbiome_jepa/realenc}   # encoder checkpoint dir (override for SIGReg/d256)
+DM=${DM:-128}                                           # encoder d_model (must match the checkpoint)
+OUT=${OUT:-$WORK/checkpoints/microbiome_jepa/tech_invariance}
 DATA=$EBJEPA_DSETS/susagi/data
 $PY -m examples.microbiome_jepa.tech_invariance --checkpoint $ENC/latest.pth.tar --fname $CFG \
-  --data_dir $DATA --d_model 128 --n_max 256 --per_class_cap 2500 --device cpu \
+  --data_dir $DATA --d_model $DM --n_max 256 --per_class_cap 2500 --device cpu \
   --susagi_repo $WORK/Microbiome-Modelling \
   --susagi_ckpt $DATA/model/checkpoint_epoch_0_final_newblack_2epoch.pt \
-  --out $WORK/checkpoints/microbiome_jepa/tech_invariance
+  --out $OUT
 echo "MB_TECH_DONE"
