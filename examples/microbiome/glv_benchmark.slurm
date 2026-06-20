@@ -1,4 +1,11 @@
 #!/bin/bash
+# gLV JEPA Temporal Benchmark
+# Trains SetEncoder+RNNPredictor JEPA on synthetic gLV, then runs MDSINE2-style
+# hold-one-subject-out CLR-RMSE benchmark vs persistence / gLV-L2 / gLV-net.
+#
+# Submit (from repo root on DALIA):
+#   sbatch examples/microbiome/glv_benchmark.slurm
+#
 #SBATCH --job-name=glv_jepa_bench
 #SBATCH --partition=defq
 #SBATCH --account=vivatech-dynamics
@@ -6,38 +13,45 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
+#SBATCH --gres=gpu:1
 #SBATCH --time=02:00:00
-#SBATCH --output=%x_%j.out
-#SBATCH --error=%x_%j.err
+#SBATCH --output=glv_jepa_bench_%j.out
+#SBATCH --error=glv_jepa_bench_%j.err
 
-set -euo pipefail
+export PYTHONUNBUFFERED=1
+set -e
 
-WORK=/lustre/work/vivatech-dynamics/aouldhoci
-REPO=$WORK/DynaAMIcs
-RESULTS=$WORK/glv_benchmark_results
-FIGS=$WORK/glv_benchmark_figs
-CKPT=$WORK/glv_jepa.pt
+REPO="${EBJEPA_REPO:-$SLURM_SUBMIT_DIR}"
+source "$REPO/env.sh"
+cd "$REPO"
 
 echo "========================================"
 echo " gLV JEPA Benchmark"
-echo " Job: $SLURM_JOB_ID"
-echo " Node: $(hostname)"
-echo " Started: $(date)"
+echo " Job:   $SLURM_JOB_ID"
+echo " Node:  $(hostname)"
+echo " GPU:   $(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null || echo n/a)"
+echo " Start: $(date)"
 echo "========================================"
 
-cd $REPO
-git pull origin amine || true    # best-effort pull; don't fail if offline
+# Pull latest code from amine branch
+git pull origin amine || echo "git pull failed (offline?), continuing with current code"
 
-# Activate environment
-source $WORK/.venv/bin/activate 2>/dev/null || \
-  (cd $REPO && uv sync --quiet && source .venv/bin/activate)
+# Install uv if missing
+if ! uv --version &>/dev/null; then
+    curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$UV_INSTALL_DIR" sh
+fi
+echo "uv: $(uv --version)"
 
-mkdir -p $RESULTS $FIGS
+uv sync --project "$REPO"
+
+RESULTS="$EBJEPA_WORK/glv_benchmark_results"
+FIGS="$EBJEPA_WORK/glv_benchmark_figs"
+CKPT="$EBJEPA_WORK/checkpoints/glv_jepa.pt"
+mkdir -p "$RESULTS" "$FIGS" "$(dirname $CKPT)"
 
 echo ""
-echo "--- Training JEPA + running benchmark ---"
-python -m examples.microbiome.glv_benchmark \
+echo "--- Training JEPA + benchmark ---"
+uv run python -u -m examples.microbiome.glv_benchmark \
     --n_species 32 \
     --n_candidate 8 \
     --n_traj 512 \
@@ -48,18 +62,19 @@ python -m examples.microbiome.glv_benchmark \
     --lr 1e-3 \
     --d_model 128 \
     --h_enc 256 \
-    --ckpt_out $CKPT \
+    --ckpt_out "$CKPT" \
     --n_subjects 30 \
     --T 60 \
     --seeds 0 1 2 \
     --horizons 1 3 5 10 \
-    --out $RESULTS/glv_benchmark_jepa.json \
-    --figs $FIGS \
+    --out "$RESULTS/glv_benchmark_jepa.json" \
+    --figs "$FIGS" \
     --device cuda
 
 echo ""
-echo "--- Done ---"
-echo "Results: $RESULTS/glv_benchmark_jepa.json"
-echo "Figures: $FIGS/"
-echo "Checkpoint: $CKPT"
-echo "Finished: $(date)"
+echo "========================================"
+echo " Done: $(date)"
+echo " Results: $RESULTS/glv_benchmark_jepa.json"
+echo " Figures: $FIGS/"
+echo " Checkpoint: $CKPT"
+echo "========================================"
