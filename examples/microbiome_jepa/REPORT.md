@@ -248,6 +248,70 @@ R² ~0.89) — enough to move "closer" but not to target within tol, where the o
 reaches 0.79. M3 is a thorough, honestly-bounded negative; the route to closing it is a representation whose
 latent *metric* (not just its predictability) is precise enough — kept as an extension, not folded.
 
+## Closing the loop with a HYBRID metric auxiliary — MEASURED, POSITIVE (branch `m3-metric-loss-hybrid`; jobs 75773/75774/75775)
+The pure-JEPA M3 negative above makes a falsifiable prediction: the wall is the latent **metric** (rank
+Spearman ~0.81 / decode R² ~0.89), so a representation whose latent distance actually tracks true-state
+distance should close the loop. We test that prediction directly by **supplying** the metric.
+
+> **This is a HYBRID, NOT pure JEPA.** We add an isometry auxiliary that uses **ground-truth gLV-state
+> distances** as supervision: `train_worldmodel` with `model.regularizer.metric_coeff>0` adds, on top of
+> the unchanged weak-reg JEPA objective, a term matching `‖z_a−z_b‖` to the TRUE `‖x_a−x_b‖` (Euclidean in
+> S-dim abundance, the exact metric planning is scored in) up to one learned global scale. Everything else
+> is the *identical* weak-reg substrate (d128, K=24, sim4/cov1/std0.25, idm on, 80 ep) — **one thing
+> changed**. The pure-JEPA headline and the pure-M3 negative above stand unchanged; this is presented
+> *alongside* them. `metric_coeff=0` is bit-identical to the pure-JEPA trainer.
+
+**Gate (`m3_metric_gate.py`, CPU; pure-JEPA "before" recomputed live in the same process, not quoted):**
+
+| quantity (K=24, d128) | pure JEPA (weak-reg) | metric HYBRID (mc=0.3) |
+|---|---|---|
+| latent-vs-true dist Spearman (to target) | **+0.085** | **+0.990** |
+| latent-vs-true dist Pearson (to target) | +0.113 | +0.977 |
+| decode R² (MLP readout z→x) | 0.893 | **0.979** |
+| feat_std (latent spread) | 0.0076 | 0.072 |
+| free-running 6-step rollout error | **0.084** | **0.283** |
+
+The metric lands almost perfectly: raw latent distance, which was *uninformative* (Spearman ≈0), becomes a
+near-isometry of true distance (0.99). **The known risk also materializes** (as with SIGReg's isotropic
+latent): a more metric/spread latent is harder to roll forward — free-running rollout error rises 0.084→0.283.
+
+**Planning re-run (`plan_glv_learned.py`, 3 seeds, tol=0.996; oracle = true-dynamics MPPI):**
+
+| method | pure JEPA (M3 negative) | metric HYBRID (mc=0.3) |
+|---|---|---|
+| random / greedy | 0% / 0% | 0% / 0% |
+| **raw-latent MPPI** (the clean test) | **0%** (final 4.53) | **100% ± 0%** (final **0.804**) |
+| decoded-state MPPI | 0% (final 3.12) | 100% ± 0% (final 0.844) |
+| learned-cost MPPI | 0% (final 3.06) | 81% ± 7% (final 1.02) |
+| oracle (true dynamics) | 1.00 (final 0.79) | 1.00 (final 0.79) |
+
+**The loop closes.** With the metric in the latent, *raw latent-distance* MPPI — no decoder, no learned
+cost — reaches 100% at final 0.804, **matching the oracle's 0.79**. The pure-JEPA latent was 0% on the same
+planner. This confirms the M3 diagnosis exactly: the wall was the latent metric, and supplying it closes the
+loop.
+
+**The cost is ROLLOUT, not cost geometry, and not recognition** (`metric_coeff` sweep + `m3_recognition.py`;
+figure `results/metric_hybrid.png`):
+- *Sweep:* the cost geometry saturates (Spearman 0.99 at mc∈{0.3,1.0,3.0}), but free-running rollout error
+  grows 0.283→0.365→0.415, and raw-latent planning success erodes 100%→97%→92%. **mc=0.3 is the sweet spot**
+  (best metric, least rollout damage). So the binding tension is the metric-vs-predictability of the latent,
+  exactly the "faithful-for-1-step ≠ metric-space" lesson, now seen from the other side.
+- *Recognition tradeoff (the "M2 impact", measured on the gLV encoder):* the thesis expected metric-
+  preservation to trade away abstraction and **hurt** recognition. It does **not** — a linear probe on the
+  frozen latent **improves** with the metric: dominant-guild 0.899→0.971, basin-of-attraction 0.690→0.812
+  (mc=0.3; gains hold at all coeffs). On the gLV the true-state metric and the categorical/topological
+  community structure are *aligned*, so no recognition cost appears here. We report this honestly: the
+  predicted recognition tradeoff is **refuted on this sim**; the price of the metric latent is rollout
+  fidelity alone.
+
+**Honest scope.** This is a HYBRID result: the isometry term needs true-state distances, which exist only in
+the simulator. It does **not** make pure JEPA close the loop (that negative stands) — it shows *what the
+pure-JEPA latent was missing* and that injecting it suffices. On REAL data the M2 encoder has no ground-truth
+state, so a metric run there would need a *biological* community distance (e.g. Bray-Curtis) — a different
+loss and a separate experiment (future work). Story in one line: **pure JEPA cannot close the loop (exhaustive
+8-lever diagnosis); a metric auxiliary closes it to oracle level — but it is no longer pure JEPA and it costs
+multi-step rollout fidelity (recognition is, on the gLV, unharmed).**
+
 ## Did a better representation (SIGReg / LeJEPA) fix the weak spots? — MEASURED, mixed (branch `sigreg-rep`)
 Thesis: the three weak spots — M2's AUC-tie, M3's unclosed planning loop, and the tech-invariance loss —
 all bottleneck on the SAME thing, the *representation* (two-view VICReg). The highest-leverage untried
@@ -328,8 +392,12 @@ baseline.
 - The set-transformer uses CLR log-abundance + a (for gLV) fixed random "species embedding"; real-data
   runs use ProkBERT embeddings.
 - 3-seed (not large-N) error bars; we report mean ± s.e. and the seeds.
-- Planning is a fully *diagnosed* negative (above), not a success: the loop is not closed at the achieved
-  representation fidelity (R² ≤ 0.89); the identified path is a more state-decodable / metric latent.
+- Planning in **pure JEPA** is a fully *diagnosed* negative (above): the loop is not closed at the achieved
+  representation fidelity (R² ≤ 0.89); the identified path is a more state-decodable / metric latent. A
+  **HYBRID** metric auxiliary (true-state supervision; "Closing the loop…" above) *does* close it to oracle
+  level (raw-latent MPPI 100%, final 0.804 ≈ oracle 0.79), confirming the diagnosis — but it is no longer
+  pure JEPA, it costs multi-step rollout fidelity, and on real data it would need a biological community
+  distance (Bray-Curtis) since there is no ground-truth state (future work).
 - The real-data Layer A probe (competitive: AUC tie with a supervised MLP) and the sequencing-tech
   invariance (an honest *loss* — our rep keeps the protocol signal) are MEASURED. Still running at time
   of writing: a higher-capacity planning world model (a 3rd readout-fidelity point) and a longer/bigger

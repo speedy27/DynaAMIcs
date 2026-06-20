@@ -23,7 +23,15 @@ VICReg partially substitutes for IDM; default regime +0.073, seed-noisy) — tha
   the learned planner never crosses tol across **every lever** tried — two regularizers, decoded + learned
   monotonic costs (the learned cost ranks at Spearman 0.81, the best method, final ~3.0), a capacity sweep,
   and the planning loop (already receding-horizon; longer horizon is *better*, so compounding error is not
-  the wall). The residual gap is the learned model's fidelity for precise closed-loop control.
+  the wall) — exonerating the dynamics model and pinning the wall to the latent **metric** (Spearman ~0.81 /
+  decode R² ~0.89).
+- **Closing the loop with a HYBRID metric auxiliary (POSITIVE — branch `m3-metric-loss-hybrid`).** Adding a
+  metric-preserving isometry term (latent dist → TRUE gLV-state dist; **true-state supervision ⇒ HYBRID, NOT
+  pure JEPA**) drives latent-vs-true distance Spearman ≈0 → **0.99** and **closes the loop**: raw-latent MPPI
+  **0% → 100%**, final **0.804 ≈ oracle 0.79**. This confirms the M3 diagnosis (the wall was the metric). The
+  cost is **rollout fidelity** (free-run rollout 0.084→0.28), not recognition — a linear probe actually
+  *improves* (basin 0.69→0.81), refuting the abstraction-tradeoff thesis on the gLV. Presented *alongside* the
+  pure-JEPA negative, not replacing it. ([results/metric_hybrid.png](results/metric_hybrid.png))
 - **Sequencing-tech invariance: honest negative.** Our SSL reps (VICReg & SIGReg) *retain* the amplicon-vs-WGS
   protocol signal (≈0.96 recoverable) more than the Susagi imposter rep (0.89) — isotropy doesn't buy invariance.
 
@@ -79,6 +87,8 @@ Note: fire override syntax is `--key value` (bare `key=value` binds to the posit
 | `tech_invariance.py` | sequencing-tech invariance: amplicon-vs-wgs recoverability from JEPA vs raw / random / Susagi reps |
 | `run_realdata_big.sh`, `run_realdata_eval.sh`, `run_tech_invariance.sh` | real-data pretrain/probe + tech-invariance |
 | `plan_glv_learned.py` | M3 last lever: a LEARNED monotonic cost (rank head on the frozen latent) for MPPI + a horizon sweep |
+| `m3_metric_gate.py`, `m3_recognition.py` | **HYBRID** metric-loss gate (latent-vs-true corr, decode R², rollout) + recognition tradeoff probe |
+| `run_glv_k24_metric.sh`, `make_metric_figure.py` | train the HYBRID metric world model (`metric_coeff` via `MC`) + the closure/tradeoff figure |
 | `run_realdata_sigreg.sh`, `run_realdata_ema.sh` | EXP1/EXP2: SIGReg (`loss.type bcs`) and SIGReg+EMA-teacher Layer-A pretraining |
 | `losses.py: SIGReg_IDM_Sim_Regularizer` | SIGReg (Epps-Pulley isotropy) world-model regularizer (M3 geometry gate) |
 | `probe_downstream.py`, `baselines_port.py` | earlier Layer A downstream probe scaffolding |

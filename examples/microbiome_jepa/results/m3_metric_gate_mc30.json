@@ -1,0 +1,48 @@
+{
+  "pure_jepa_ref": {
+    "tag": "pure-JEPA (weak-reg, before)",
+    "checkpoint": "checkpoints/plan_model_k24_lowreg/latest.pth.tar",
+    "corr_to_target": {
+      "pearson": 0.11281373412282786,
+      "spearman": 0.08453076276710987,
+      "n": 120
+    },
+    "corr_pairwise": {
+      "pearson": 0.5291258692741394,
+      "spearman": 0.516013072760713
+    },
+    "decode_r2": {
+      "linear": 0.8432734608650208,
+      "mlp": 0.8926615715026855
+    },
+    "feat_std": 0.007584392558783293,
+    "rollout": {
+      "one_step_err": 0.0726756900548935,
+      "freerun_6step_err": 0.08427272154095893
+    }
+  },
+  "metric_hybrid": {
+    "tag": "metric HYBRID (after)",
+    "checkpoint": "checkpoints/plan_model_k24_metric_mc30/latest.pth.tar",
+    "corr_to_target": {
+      "pearson": 0.9744221719552439,
+      "spearman": 0.990572196493204,
+      "n": 120
+    },
+    "corr_pairwise": {
+      "pearson": 0.9833695888519287,
+      "spearman": 0.9731930149549716
+    },
+    "decode_r2": {
+      "linear": 0.9660901427268982,
+      "mlp": 0.9692401885986328
+    },
+    "feat_std": 0.08552047610282898,
+    "rollout": {
+      "one_step_err": 0.3234929144382477,
+      "freerun_6step_err": 0.4148227328372498
+    }
+  },
+  "gate_pass": true,
+  "verdict": "metric model trained; to-target Spearman +0.085 -> +0.991 (\u0394+0.906); decode R^2(mlp) 0.893 -> 0.969 (\u0394+0.077); free-run 6-step rollout 0.084 -> 0.415 (\u0394+0.331). GATE PASS -> re-plan."
+}

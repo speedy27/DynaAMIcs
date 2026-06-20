@@ -1,0 +1,60 @@
+{
+  "checkpoint": "checkpoints/plan_model_k24_metric_mc03/latest.pth.tar",
+  "ref_checkpoint": "checkpoints/plan_model_k24_lowreg/latest.pth.tar",
+  "tasks": {
+    "dominant_guild": {
+      "metric_hybrid": {
+        "acc_full": 0.97109375,
+        "acc_fewshot": 0.83984375,
+        "majority": 0.35,
+        "n_train": 5120,
+        "n_test": 1280,
+        "test_class_balance": {
+          "0": 388,
+          "1": 448,
+          "2": 444
+        }
+      },
+      "pure_jepa_ref": {
+        "acc_full": 0.89921875,
+        "acc_fewshot": 0.6484375,
+        "majority": 0.35,
+        "n_train": 5120,
+        "n_test": 1280,
+        "test_class_balance": {
+          "0": 388,
+          "1": 448,
+          "2": 444
+        }
+      },
+      "delta_metric_minus_pure_full": 0.07187500000000002
+    },
+    "basin": {
+      "metric_hybrid": {
+        "acc_full": 0.8125,
+        "acc_fewshot": 0.6583333333333333,
+        "majority": 0.36666666666666664,
+        "n_train": 1920,
+        "n_test": 480,
+        "test_class_balance": {
+          "0": 164,
+          "1": 176,
+          "2": 140
+        }
+      },
+      "pure_jepa_ref": {
+        "acc_full": 0.6895833333333333,
+        "acc_fewshot": 0.475,
+        "majority": 0.36666666666666664,
+        "n_train": 1920,
+        "n_test": 480,
+        "test_class_balance": {
+          "0": 164,
+          "1": 176,
+          "2": 140
+        }
+      },
+      "delta_metric_minus_pure_full": 0.12291666666666667
+    }
+  }
+}
