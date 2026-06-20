@@ -19,6 +19,7 @@ Smoke (CPU, no data needed) — note fire override syntax is `--key value` (with
   positional `cfg` arg and breaks — always use `--key value`.)
 """
 
+import copy
 import time
 from pathlib import Path
 
@@ -148,6 +149,17 @@ def run(
         projector = nn.Identity()
     model = CommunitySSL(encoder, projector).to(device)
 
+    # EXP2 (GeneJepa): optional EMA TEACHER — view2's target comes from an EMA copy of the model
+    # (stop-grad), a la BYOL/DINO/I-JEPA. A single attributable change on top of the SIGReg/VICReg setup.
+    use_ema = bool(cfg.model.get("use_ema", False))
+    ema_decay = float(cfg.model.get("ema_decay", 0.996))
+    target_model = None
+    if use_ema:
+        target_model = copy.deepcopy(model)
+        for p in target_model.parameters():
+            p.requires_grad_(False)
+        logger.info(f"EMA teacher ON (decay={ema_decay}): view2 target = EMA(model), stop-grad")
+
     log_model_info(
         model,
         {
@@ -199,13 +211,23 @@ def run(
             optimizer.zero_grad()
             with autocast(device.type, enabled=use_amp, dtype=dtype):
                 f1, z1 = model(v1)
-                _, z2 = model(v2)
+                if target_model is not None:
+                    with torch.no_grad():
+                        _, z2 = target_model(v2)   # EMA-teacher target (stop-grad)
+                else:
+                    _, z2 = model(v2)
                 loss_dict = loss_fn(z1, z2)
                 loss = loss_dict["loss"]
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
             scheduler.step()
+            if target_model is not None:   # EMA update of the teacher
+                with torch.no_grad():
+                    for pt, ps in zip(target_model.parameters(), model.parameters()):
+                        pt.data.mul_(ema_decay).add_(ps.data, alpha=1.0 - ema_decay)
+                    for bt, bs in zip(target_model.buffers(), model.buffers()):
+                        bt.data.copy_(bs.data)
 
             fstd = feature_collapse_std(f1)
             for k, v in loss_dict.items():
