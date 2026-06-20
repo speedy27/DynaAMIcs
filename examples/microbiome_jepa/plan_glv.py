@@ -407,6 +407,9 @@ def build_glv_and_encoder(cfg, device) -> Tuple[GLVSimulator, StateEncoder]:
     """Build the gLV env + the StateEncoder, BOTH using the SAME params as the training data config so
     the env dynamics, the species embeddings, and the fitted z-score all match training."""
     d = cfg.data
+    # STRUCTURAL knobs (n_guilds / comp strengths / growth / ...) define the interaction matrix A and
+    # the attractors; default to GLVConfig defaults so a config that omits them is identical to before.
+    _gd = GLVConfig()
     glv_cfg = GLVConfig(
         n_species=int(d.n_species),
         n_candidate=int(d.n_candidate),
@@ -414,6 +417,13 @@ def build_glv_and_encoder(cfg, device) -> Tuple[GLVSimulator, StateEncoder]:
         steps_per_action=int(d.get("steps_per_action", 1)),
         noise_std=float(d.get("noise_std", 0.0)),
         seed=int(d.get("sim_seed", d.get("seed", 0))),
+        n_guilds=int(d.get("n_guilds", _gd.n_guilds)),
+        self_lim=float(d.get("self_lim", _gd.self_lim)),
+        within_frac=float(d.get("within_frac", _gd.within_frac)),
+        comp_strong=float(d.get("comp_strong", _gd.comp_strong)),
+        comp_weak=float(d.get("comp_weak", _gd.comp_weak)),
+        growth=float(d.get("growth", _gd.growth)),
+        immigration=float(d.get("immigration", _gd.immigration)),
     )
     sim = GLVSimulator(glv_cfg)
 
@@ -421,7 +431,8 @@ def build_glv_and_encoder(cfg, device) -> Tuple[GLVSimulator, StateEncoder]:
     # training loader (init_microbiome_traj_data builds GLVTrajDataset from the same cfg.data).
     traj_cfg = GLVTrajConfig()
     for k in ("n_traj", "T", "n_species", "n_candidate", "dt", "steps_per_action", "noise_std",
-              "action_policy", "emb_seed", "sim_seed", "eps_present", "pseudocount"):
+              "action_policy", "emb_seed", "sim_seed", "eps_present", "pseudocount",
+              "n_guilds", "self_lim", "within_frac", "comp_strong", "comp_weak", "growth", "immigration"):
         if hasattr(d, k) and d.get(k) is not None and hasattr(traj_cfg, k):
             setattr(traj_cfg, k, d.get(k))
     glv_ds = GLVTrajDataset(traj_cfg)

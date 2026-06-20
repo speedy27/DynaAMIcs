@@ -107,6 +107,18 @@ class GLVTrajConfig:
     emb_seed: int = 0          # seed for the fixed species embeddings
     sim_seed: int = 0          # seed for trajectory generation
 
+    # ---- gLV STRUCTURAL knobs (plumbed for the generalization experiment; default == GLVConfig
+    # defaults, so any existing config is bit-identical). These (NOT the seed) define the interaction
+    # matrix A + the attractors: the simulator builds A deterministically from them. Varying them
+    # produces genuinely different gLV INSTANCES (different A, different target attractors). ----
+    n_guilds: int = 3
+    self_lim: float = -1.0
+    within_frac: float = 0.4
+    comp_strong: float = -2.5
+    comp_weak: float = -0.4
+    growth: float = 1.0
+    immigration: float = 1e-3
+
     batch_size: int = 16
     num_workers: int = 0
     val_frac: float = 0.1
@@ -188,6 +200,13 @@ class GLVTrajDataset(TrajDataset):
                 steps_per_action=cfg.steps_per_action,
                 noise_std=cfg.noise_std,
                 seed=cfg.sim_seed,
+                n_guilds=cfg.n_guilds,
+                self_lim=cfg.self_lim,
+                within_frac=cfg.within_frac,
+                comp_strong=cfg.comp_strong,
+                comp_weak=cfg.comp_weak,
+                growth=cfg.growth,
+                immigration=cfg.immigration,
             )
             return GLVSimulator(gcfg), False
         except Exception:
