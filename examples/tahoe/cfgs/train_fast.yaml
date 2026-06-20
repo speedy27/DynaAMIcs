@@ -1,0 +1,40 @@
+# Tahoe-JEPA FAST: GB200-saturating config (GPU-resident + bf16 + huge batch).
+# Differs from train.yaml: bigger batch, larger model, SetTransformer encoder,
+# bf16 enabled, less-frequent probes (probes are CPU sklearn, not GPU work).
+meta:
+  seed: 0
+
+data:
+  cache_path: artifacts/tahoe/cache.pt
+  drop_frac: 0.3
+  noise_std: 0.1
+  val_fraction: 0.2
+  batch_size: 16384         # 32x default (was 512). Fits easily on B200 189GB.
+
+model:
+  encoder: mlp              # SetTransformer attention OOM at BS=16384; big MLP saturates GPU fine
+  d_model: 384              # (only used if encoder=settransformer)
+  n_latents: 32
+  depth: 4
+  heads: 6
+  henc: 2048                # was 512 -> 8M-param MLP, fits 16k batch easily on B200
+  dstc: 256                 # was 128
+  proj: 1024                # was 512
+
+loss:
+  reg: sigreg
+  num_slices: 256
+  lmbd: 10.0
+  std_coeff: 10.0           # vicreg fallback
+  cov_coeff: 25.0
+  pathway_coeff: 1.0
+
+optim:
+  epochs: 70
+  lr: 3.0e-3                # scaled with batch (was 1e-3 at BS=512)
+  weight_decay: 1.0e-4
+  probe_every: 10           # CPU sklearn -> keep rare
+  bf16: true                # autocast for encoder/projector forward
+
+logging:
+  log_wandb: false

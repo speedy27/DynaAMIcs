@@ -1,0 +1,42 @@
+# Tahoe-JEPA ULTRA: pushed even further on a single GB200.
+# Differs from train_fast.yaml:
+#   - batch_size 32768 (2x)        -> still fits easily in 184GB with MLP encoder
+#   - henc 4096, dstc 512, proj 2048 (bigger encoder, 30M+ params)
+#   - probe_every 70 (final probe only, no mid-train sklearn pauses)
+#   - lr scaled with batch (3e-3 -> 5e-3)
+meta:
+  seed: 1
+
+data:
+  cache_path: artifacts/tahoe/cache.pt
+  drop_frac: 0.3
+  noise_std: 0.1
+  val_fraction: 0.2
+  batch_size: 32768
+
+model:
+  encoder: mlp
+  n_latents: 32
+  depth: 4
+  heads: 6
+  henc: 4096
+  dstc: 512
+  proj: 2048
+
+loss:
+  reg: sigreg
+  num_slices: 256
+  lmbd: 10.0
+  std_coeff: 10.0
+  cov_coeff: 25.0
+  pathway_coeff: 1.0
+
+optim:
+  epochs: 70
+  lr: 5.0e-3
+  weight_decay: 1.0e-4
+  probe_every: 70           # final probe only -> no sklearn pauses mid-training
+  bf16: true
+
+logging:
+  log_wandb: false

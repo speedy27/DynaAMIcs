@@ -1,0 +1,47 @@
+# Microbiome2img-JEPA: FCGR (DNA-as-image) encoder in the library EB-JEPA world model.
+# Same recipe as examples/microbiome -- only the per-OTU token encoder changes.
+meta:
+  seed: 0
+
+data:
+  # FCGR / synthetic-cohort knobs (examples/microbiome2img/synth.py)
+  k: 4                 # FCGR resolution -> S = 2^k image (k=4 -> 16x16, 256 channels)
+  n_clades: 6          # clades = number of diet actions
+  otus_per_clade: 8    # K = n_clades * otus_per_clade total OTUs
+  seq_len: 400
+  between: 0.28        # inter-clade divergence (clade separation)
+  divergence: 0.06     # within-clade spread
+  n_subjects: 240
+  n_window: 6          # T timepoints per trajectory
+  n_max: 16            # OTU slots per community (top-abundance kept)
+  decay: 0.85          # log-abundance state persistence
+  diet_strength: 2.5   # how hard a diet boosts its clade (makes prediction non-trivial)
+  noise: 0.30          # process noise
+  val_fraction: 0.2
+  batch_size: 64
+  num_workers: 0
+
+model:
+  henc: 32             # FCGR CNN base width (h_d)
+  dstc: 128            # latent state dim D
+  hpre: 256            # predictor / inverse-dynamics hidden width
+  nsteps: 4            # K autoregressive rollout steps
+
+loss:
+  std_coeff: 10.0      # VICReg variance (anti-collapse) -- WATCH THIS
+  cov_coeff: 25.0      # VICReg covariance (decorrelation)
+  sim_coeff_t: 0.0     # temporal smoothness (OFF: causes temporal collapse here)
+  idm_coeff: 1.0       # inverse-dynamics (keeps latent action-relevant)
+  div_coeff: 1.0       # AlphaDiversityLoss
+  phylo_coeff: 1.0     # PhyloDispersionLoss (tree-free soft-UniFrac on FCGR)
+  tvar_coeff: 1.0      # TemporalVarianceLoss (anti temporal-collapse)
+  tvar_margin: 1.0
+
+optim:
+  epochs: 30
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  probe_every: 5
+
+logging:
+  log_wandb: false

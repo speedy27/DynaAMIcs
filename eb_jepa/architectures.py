@@ -587,6 +587,60 @@ class SetEncoder(TemporalBatchMixin, nn.Module):
         return z
 
 
+class FCGRSetEncoder(TemporalBatchMixin, nn.Module):
+    """Permutation-invariant, abundance-weighted community encoder where each OTU
+    token is an FCGR *image* of its DNA (DNA-as-image) instead of a precomputed
+    sequence embedding. A drop-in replacement for ``SetEncoder`` in the microbiome
+    JEPA: identical 5D contract and identical abundance-weighted set pooling, so the
+    temporal/action JEPA machinery is reused unchanged.
+
+    Channel layout of the input (per OTU token):
+      - channels [0 : S*S]   -> flattened FCGR image, S = 2**k (row-major)
+      - channel  [S*S]       -> log1p(relative abundance); 0 for padded slots
+
+    A small CNN reads each OTU's S x S FCGR image to a per-token vector; tokens are
+    pooled with abundance weights (padded slots carry abundance 0 -> weight 0 ->
+    ignored for free). The abundance enters ONLY as a pooling weight, never as a CNN
+    feature, so there is no per-dimension normalization issue between the image
+    channels and the abundance channel.
+
+    Output: [B, out_d, 1, 1] per timestep -> [B, out_d, T, 1, 1] for a sequence.
+    """
+
+    def __init__(self, k=4, h_d=32, out_d=128, abundance_weighted=True):
+        super().__init__()
+        self.k = k
+        self.S = 1 << k  # 2**k
+        self.img_ch = self.S * self.S
+        self.abundance_weighted = abundance_weighted
+        self.token = nn.Sequential(
+            nn.Conv2d(1, h_d, kernel_size=3, stride=2, padding=1), nn.GELU(),          # S/2
+            nn.Conv2d(h_d, 2 * h_d, kernel_size=3, stride=2, padding=1), nn.GELU(),     # S/4
+            nn.Conv2d(2 * h_d, 4 * h_d, kernel_size=3, stride=2, padding=1), nn.GELU(), # S/8
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+            nn.Linear(4 * h_d, out_d),
+        )
+        self.out_dim = out_d
+        self.apply(init_module_weights)
+
+    def _forward(self, x):
+        # x: [B, S*S + 1, N, 1]
+        b, _, n, _ = x.shape
+        logab = x[:, self.img_ch : self.img_ch + 1]  # [B, 1, N, 1]
+        imgs = x[:, : self.img_ch, :, 0]  # [B, S*S, N]
+        imgs = imgs.permute(0, 2, 1).reshape(b * n, 1, self.S, self.S)  # [B*N, 1, S, S]
+        h = self.token(imgs).reshape(b, n, self.out_dim)  # [B, N, out_d]
+        h = h.permute(0, 2, 1).unsqueeze(-1)  # [B, out_d, N, 1]
+        if self.abundance_weighted:
+            w = F.relu(logab)  # padded slots (ab=0) -> weight 0
+        else:
+            w = (logab > 0).float()  # presence mask (unweighted mean over present)
+        w = w / (w.sum(dim=2, keepdim=True) + 1e-6)  # normalize over the token axis
+        z = (h * w).sum(dim=2, keepdim=True)  # [B, out_d, 1, 1] weighted pool
+        return z
+
+
 class RNNPredictor(nn.Module):
     """GRU-based predictor for single-step state propagation."""
 

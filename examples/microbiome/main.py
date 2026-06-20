@@ -57,11 +57,95 @@ def _condition_label(coeffs):
     return "+".join(active) if active else "baseline"
 
 
+class ResidualRNNPredictor(RNNPredictor):
+    """RNN predictor that outputs the CHANGE: z_{t+1} = z_t + g(z_t, a).
+
+    A zero-initialized delta head makes it start at EXACT identity (skill=1 at init),
+    so it matches persistence / linear-AR by construction and only learns the small
+    correction -- the fix for "a linear model beats the world-model predictor" on the
+    slow microbiome trajectories (where the optimal map is ~identity + a tiny term).
+    """
+
+    def __init__(self, hidden_size, action_dim, num_layers=1, **_):
+        super().__init__(hidden_size=hidden_size, action_dim=action_dim,
+                         num_layers=num_layers, final_ln=None)
+        self.delta_head = nn.Linear(hidden_size, hidden_size)
+        nn.init.zeros_(self.delta_head.weight)
+        nn.init.zeros_(self.delta_head.bias)
+
+    def forward(self, state, action):
+        rnn_state = state.flatten(1, 4).unsqueeze(0).contiguous()  # [1, B, D]
+        rnn_input = action.squeeze(-1).unsqueeze(0).contiguous()   # [1, B, A]
+        out, _ = self.rnn(rnn_input, rnn_state)                    # [1, B, D]
+        delta = self.delta_head(out[0])                            # [B, D] (== 0 at init)
+        delta = delta.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)    # [B, D, 1, 1, 1]
+        return state + delta
+
+
+class NormSetEncoder(SetEncoder):
+    """SetEncoder with per-feature z-score on the token-MLP input. The log-abundance
+    channel otherwise dwarfs the ProkBERT dims and dominates the VICReg variance term
+    -- per-feature normalization is required. The RAW abundance is kept for the pooling
+    weight + padding mask; only the MLP *features* are standardized. Stats are set once
+    from the training set via set_feature_stats() and stored as buffers (checkpointed).
+    """
+
+    def __init__(self, emb_dim=384, h_d=256, out_d=128, abundance_weighted=True):
+        super().__init__(emb_dim=emb_dim, h_d=h_d, out_d=out_d,
+                         abundance_weighted=abundance_weighted)
+        self.register_buffer("feat_mean", torch.zeros(emb_dim + 1))
+        self.register_buffer("feat_std", torch.ones(emb_dim + 1))
+
+    def set_feature_stats(self, mean, std):
+        self.feat_mean.copy_(torch.as_tensor(mean, dtype=self.feat_mean.dtype))
+        self.feat_std.copy_(torch.as_tensor(std, dtype=self.feat_std.dtype).clamp_min(1e-6))
+
+    def _forward(self, x):
+        logab = x[:, self.emb_dim : self.emb_dim + 1]            # RAW -> pooling weight + mask
+        m = self.feat_mean.view(1, -1, 1, 1)
+        s = self.feat_std.view(1, -1, 1, 1)
+        h = self.token_mlp((x - m) / s)                          # standardized features
+        if self.abundance_weighted:
+            w = torch.relu(logab)                                # padded slots (ab=0) -> 0
+        else:
+            w = (logab > 0).float()
+        w = w / (w.sum(dim=2, keepdim=True) + 1e-6)
+        z = (h * w).sum(dim=2, keepdim=True)
+        z = self.post(z)
+        return z
+
+
+@torch.no_grad()
+def _feature_stats(loader, emb_dim, device):
+    """Per-channel mean/std over PRESENT OTU tokens (log-abundance > 0) across the
+    training set, for the encoder's per-feature z-score (padded slots excluded)."""
+    C = emb_dim + 1
+    csum = torch.zeros(C, device=device)
+    csqsum = torch.zeros(C, device=device)
+    count = 0
+    for b in loader:
+        x = b["observations"].to(device)[..., 0]   # [B, C, T, N]
+        present = x[:, emb_dim] > 0                 # [B, T, N]
+        xp = x.permute(0, 2, 3, 1)[present]         # [P, C]
+        csum += xp.sum(0)
+        csqsum += (xp * xp).sum(0)
+        count += xp.shape[0]
+    mean = csum / max(1, count)
+    std = (csqsum / max(1, count) - mean * mean).clamp_min(1e-8).sqrt()
+    return mean.cpu(), std.cpu()
+
+
 def build_jepa(cfg, action_dim, device):
     D = cfg.model.dstc
-    encoder = SetEncoder(emb_dim=cfg.model.emb_dim, h_d=cfg.model.henc, out_d=D)
-    predictor = RNNPredictor(hidden_size=D, action_dim=action_dim,
-                             final_ln=nn.LayerNorm(D))
+    if cfg.model.get("normalize_features", False):
+        encoder = NormSetEncoder(emb_dim=cfg.model.emb_dim, h_d=cfg.model.henc, out_d=D)
+    else:
+        encoder = SetEncoder(emb_dim=cfg.model.emb_dim, h_d=cfg.model.henc, out_d=D)
+    if cfg.model.get("residual_predictor", False):
+        predictor = ResidualRNNPredictor(hidden_size=D, action_dim=action_dim)
+    else:
+        predictor = RNNPredictor(hidden_size=D, action_dim=action_dim,
+                                 final_ln=nn.LayerNorm(D))
     action_encoder = nn.Identity()
     idm = InverseDynamicsModel(state_dim=D, hidden_dim=cfg.model.hpre, action_dim=action_dim)
     projector = Projector(f"{D}-{4*D}-{4*D}")
@@ -154,6 +238,10 @@ def run(fname, overrides):
           f"train_windows={len(train_ds)} val_windows={len(val_ds)} ==")
 
     jepa = build_jepa(cfg, A, device)
+    if cfg.model.get("normalize_features", False):
+        fmean, fstd = _feature_stats(train_loader, cfg.model.emb_dim, device)
+        jepa.encoder.set_feature_stats(fmean, fstd)
+        print(f"== feature-norm ON: per-dim z-score | abundance ch mean={fmean[-1]:.2f} std={fstd[-1]:.2f} ==")
     alpha_loss = AlphaDiversityLoss(state_dim=cfg.model.dstc).to(device)
     phylo_loss = PhyloDispersionLoss().to(device)
     tvar_loss = TemporalVarianceLoss(margin=cfg.loss.get("tvar_margin", 1.0))
@@ -168,6 +256,7 @@ def run(fname, overrides):
                              warmup_ratio=0.1, min_lr=cfg.optim.lr * 0.01)
 
     ld, lp, lt = cfg.loss.div_coeff, cfg.loss.phylo_coeff, cfg.loss.get("tvar_coeff", 0.0)
+    pc = cfg.loss.get("pred_coeff", 1.0)
     probe_every = int(cfg.optim.get("probe_every", 5))
     last_val = {}
     for ep in range(1, cfg.optim.epochs + 1):
@@ -184,7 +273,7 @@ def run(fname, overrides):
             l_div = alpha_loss(state, batch["diversity"].to(device))
             l_phylo = phylo_loss(state, batch["phylo"].to(device))
             l_tvar = tvar_loss(state)
-            total = loss + ld * l_div + lp * l_phylo + lt * l_tvar
+            total = rloss + pc * ploss + ld * l_div + lp * l_phylo + lt * l_tvar
 
             opt.zero_grad(set_to_none=True)
             total.backward()

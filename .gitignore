@@ -241,3 +241,4 @@ examples/microbiome/*.pdf
 *.toc
 *.out
 *.vrb
+*.html

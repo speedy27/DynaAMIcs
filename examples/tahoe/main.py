@@ -144,20 +144,46 @@ def run(fname, overrides):
     from sklearn.decomposition import PCA
     pca = PCA(n_components=min(D, 50)).fit(Xtr_raw)
     Ptr, Pva = pca.transform(Xtr_raw), pca.transform(Xva_raw)
+    # untrained-encoder control: SAME architecture, random weights -> isolates the
+    # contribution of *training* vs the set/MLP architectural inductive bias (the
+    # control microbiome already has; "is it the objective, or just the architecture?").
+    if enc_kind == "settransformer":
+        rand_enc = SetTransformer(
+            n_genes=K, out_d=D, d_model=cfg.model.get("d_model", 192),
+            n_latents=cfg.model.get("n_latents", 32), depth=cfg.model.get("depth", 2),
+            heads=cfg.model.get("heads", 4),
+        ).to(device)
+    else:
+        rand_enc = CellEncoder(K, cfg.model.henc, D).to(device)
+    Etr_rnd = embed(rand_enc, tr.X[tr.ids], device); Eva_rnd = embed(rand_enc, va.X[va.ids], device)
+    final_metrics = {}
     for tname, arr in [("cell_line", "cell_line"), ("drug", "drug"), ("moa", "moa")]:
         ytr = getattr(tr, arr)[tr.ids].numpy(); yva = getattr(va, arr)[va.ids].numpy()
         if tname == "moa":
             u = tr.moa_names.index("unclear") if "unclear" in tr.moa_names else -999
             ytr = np.where(ytr == u, -1, ytr); yva = np.where(yva == u, -1, yva)
-        for feat, Xt, Xv in [("raw", Xtr_raw, Xva_raw), ("pca50", Ptr, Pva), ("JEPA(ours)", Etr, Eva)]:
+        final_metrics[tname] = {}
+        for feat, Xt, Xv in [("raw", Xtr_raw, Xva_raw), ("pca50", Ptr, Pva),
+                             ("random-enc", Etr_rnd, Eva_rnd), ("JEPA(ours)", Etr, Eva)]:
             r = probe(tname, Xt, ytr, Xv, yva)
-            if r: print(f"  {tname:10s} {feat:11s} F1={r['macro_f1']:.3f} acc={r['acc']:.3f}")
+            if r:
+                print(f"  {tname:10s} {feat:11s} F1={r['macro_f1']:.3f} acc={r['acc']:.3f}")
+                final_metrics[tname][feat] = {"macro_f1": r["macro_f1"], "acc": r["acc"]}
 
     ckpt = os.environ.get("EBJEPA_CKPTS", "checkpoints/tahoe")
     os.makedirs(ckpt, exist_ok=True)
     torch.save({"enc": enc.state_dict(), "cfg": OmegaConf.to_container(cfg)},
                os.path.join(ckpt, "tahoe_jepa.pt"))
     print(f"saved -> {os.path.join(ckpt, 'tahoe_jepa.pt')}")
+    summary = {"encoder": enc_kind, "seed": int(cfg.meta.seed), "genes": int(K),
+               "reg": str(cfg.loss.reg), "epochs": int(cfg.optim.epochs),
+               "metrics": final_metrics}
+    import json
+    with open(os.path.join(ckpt, "metrics.json"), "w") as f:
+        json.dump(summary, f, indent=2)
+    print(f"metrics -> {os.path.join(ckpt, 'metrics.json')}")
+    # returned for the encoder ablation driver (encoder_ablation.py); CLI path ignores it
+    return summary
 
 
 if __name__ == "__main__":

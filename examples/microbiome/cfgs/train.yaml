@@ -18,8 +18,17 @@ model:
   dstc: 128            # latent state dim D
   hpre: 256            # predictor / inverse-dynamics hidden width
   nsteps: 4            # K autoregressive rollout steps (fights exposure bias)
+  normalize_features: true  # per-feature z-score of the encoder MLP input (the log-abundance
+                            #   channel otherwise dominates the VICReg variance; raw abundance
+                            #   kept for pooling weight/mask). Ablatable: set false to compare.
+  residual_predictor: false # z_{t+1}=z_t+Δ (zero-init) predictor stays available & ablatable,
+                            #   but OFF by default: tested (full_res) and it did NOT beat the
+                            #   linear-AR baseline -- the bottleneck is the encoder's temporal
+                            #   collapse, not the predictor head
 
 loss:
+  pred_coeff: 1.0      # weight on the latent prediction loss (tested 5.0 -> hurt the
+                       #   representation for no dynamics gain, so kept at 1)
   std_coeff: 10.0      # VICReg variance (anti-collapse) -- WATCH THIS
   cov_coeff: 25.0      # VICReg covariance (decorrelation)
   sim_coeff_t: 0.0     # temporal smoothness (OFF: it causes temporal collapse here
@@ -28,7 +37,9 @@ loss:
   div_coeff: 1.0       # AlphaDiversityLoss   (microbiome-specific, option 2)
   phylo_coeff: 1.0     # PhyloDispersionLoss  (soft-UniFrac, option 3)
   tvar_coeff: 1.0      # TemporalVarianceLoss (LEVER 1: anti temporal-collapse)
-  tvar_margin: 1.0     # min per-dim std along time within a trajectory
+  tvar_margin: 4.0     # min per-dim std along time (RAISED 1->4: the REAL fix -- the encoder
+                       #   was temporally collapsed (tvar~8e-4), so a closed-form linear AR won
+                       #   the 1-step game; force trajectories to MOVE => real dynamics to learn)
 
 optim:
   epochs: 50

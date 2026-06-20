@@ -135,7 +135,9 @@ def train_one(data, device, cfg):
             if cfg["sig"] > 0: loss = loss + cfg["sig"] * sig(ph - zc, d)
             if cfg["path"] > 0:
                 P = (zp @ _modblob);  loss = loss + cfg["path"] * path(ph, P)
-            if idm is not None: loss = loss + cfg["idm"] * F.mse_loss(idm(zc, zp), a)
+            # ground the PREDICTED transition in the action: idm(z_ctrl, z_pred)->a.
+            # must use ph (predictor output), not zp (frozen data), so grad reaches pred.
+            if idm is not None: loss = loss + cfg["idm"] * F.mse_loss(idm(zc, ph), a)
             opt.zero_grad(); loss.backward(); opt.step()
         m = evaluate(va)
         if m["skill_meanshift"] > best["skill_meanshift"]:
