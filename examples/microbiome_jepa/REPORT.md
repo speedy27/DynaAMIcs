@@ -267,8 +267,23 @@ but it does NOT fix the planning geometry (M3) and is NOT more tech-invariant (�
 protocol signal). So the "one representation upgrade fixes all three" thesis is only *partly* borne out: the
 bottleneck is shared (the representation), but SIGReg's isotropy helps probing while the planning metric and
 nuisance-invariance each need their own mechanism. **The SIGReg M2 win is fold-worthy; M3/tech stay honest
-negatives.** *(EXP2 GeneJepa, incremental on SIGReg — EMA teacher + a d384 capacity point — is running;
-results appended when measured.)*
+negatives.**
+
+**EXP2 (GeneJepa recipe, incremental on SIGReg) — measured.** One change at a time on the SIGReg encoder,
+same budget, frozen probe (MLP acc/AUC):
+
+| infant-env (frozen MLP probe)      | acc / AUC       |
+|------------------------------------|-----------------|
+| SIGReg (d256, baseline)            | 0.526 / 0.894   |
+| + EMA teacher (d256)               | 0.507 / 0.885   ← **hurts** |
+| SIGReg d384 (capacity)             | **0.531 / 0.899** ← best (beats Susagi MLP 0.527/0.890) |
+
+The **EMA teacher hurts** (0.507 vs 0.526) — the stop-grad target slowed SIGReg's representation here;
+a clean negative for that component. **Capacity (d384)** gives the best frozen probe yet (0.531/0.899,
+above the supervised Susagi MLP on both). Net EXP2: the SIGReg M2 win is robust and scales mildly with
+capacity; the EMA add-on does not help. We did not pursue the heavier GeneJepa components (masked-set
+prediction, Fourier tokenizer) given diminishing returns once SIGReg already matches the supervised
+baseline.
 
 ## Reproducibility
 - One command (GPU): `cd $WORK/eb_jepa && sbatch examples/microbiome_jepa/run_glv_final.sh`

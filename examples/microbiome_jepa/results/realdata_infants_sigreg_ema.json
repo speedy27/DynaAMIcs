@@ -1,0 +1,40 @@
+{
+  "task": "infants_env",
+  "pretrained_encoder": true,
+  "n_samples": 2036,
+  "n_classes": 12,
+  "n_max": 256,
+  "d_model": 256,
+  "jepa_linear_probe": {
+    "acc_mean": 0.447435804788746,
+    "acc_se": 0.009432075400390212,
+    "auc_mean": 0.8534175955488333,
+    "auc_se": 0.002947267221182763
+  },
+  "jepa_mlp_probe": {
+    "acc_mean": 0.5073625764802235,
+    "acc_se": 0.008873538113580935,
+    "auc_mean": 0.8847911023971948,
+    "auc_se": 0.005848909446348891
+  },
+  "susagi_mlp_baseline": {
+    "acc_mean": 0.5270222093751505,
+    "acc_se": 0.010221504254452937,
+    "auc_mean": 0.8897924799192609,
+    "auc_se": 0.0020255565452629836
+  },
+  "susagi_reported": {
+    "acc": 0.549,
+    "macro_auc": 0.912,
+    "source": "Susagi env_predictions.txt (reference)"
+  },
+  "zscore_source": "corpus_5000_samples",
+  "tech_invariance": "N/A on infants (Instrument = 100% Illumina MiSeq, single class)",
+  "finetuned_upper_bound": {
+    "acc_mean": 0.5515609192079779,
+    "acc_se": 0.007860119366111813,
+    "auc_mean": 0.8964641677985176,
+    "auc_se": 0.003788519196209723,
+    "note": "SUPERVISED fine-tune of encoder+head; an upper bound, not the label-free frozen-representation claim."
+  }
+}
