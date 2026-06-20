@@ -1,0 +1,16 @@
+{
+  "n_steps": 720,
+  "n_episodes_total": 36,
+  "planner_success_rate": 0.0,
+  "corr_disagreement_vs_error_pearson": 0.377046840977578,
+  "corr_disagreement_vs_error_spearman": 0.39346323970532343,
+  "mean_disagreement": 0.011037005688477722,
+  "mean_true_error": 0.26403893751816615,
+  "disagreement_far_from_target": 0.010982451789385202,
+  "disagreement_near_target": 0.011061748957299456,
+  "error_far_from_target": 0.2638466850227239,
+  "error_near_target": 0.26450438012882155,
+  "n_models": 5,
+  "tol": 0.9957860399240593,
+  "verdict": "NOT epistemic exploitation: ensemble agrees even where the model errs -> gap is structural/aleatoric; pessimism unlikely to help"
+}
