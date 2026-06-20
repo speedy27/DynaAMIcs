@@ -76,6 +76,29 @@ def feature_collapse_std(jepa, obs):
     return z0.std(dim=0).mean().item()
 
 
+def isometry_metric_loss(z, x, log_scale, n_pairs, gen):
+    """HYBRID metric-preserving (isometry) auxiliary — NOT pure JEPA (it uses TRUE-state supervision).
+
+    Penalize the gap between the LATENT distance ||z_a - z_b|| and the TRUE gLV state distance
+    ||x_a - x_b|| (Euclidean in raw S-dim abundance space, the exact metric planning success is
+    measured in), up to a single learned global scale exp(log_scale). Minimizing this bakes the true
+    metric into the latent so RAW latent distance becomes an informative planning cost (the M3 wall the
+    diagnosis pinned: weak-reg latent-vs-true distance corr ~0, decode R^2 ~0.89 — metric, not dynamics).
+
+    Sampled pairs (seeded) keep it O(n_pairs) and bounded; squared-distance clamp keeps the sqrt grad
+    finite even if two sampled states coincide. The (still-active) VICReg std/cov terms prevent the
+    trivial collapse-to-a-point solution that would also drive this loss to zero.
+    """
+    M = z.shape[0]
+    i = torch.randint(0, M, (n_pairs,), generator=gen)
+    j = torch.randint(0, M, (n_pairs,), generator=gen)
+    j = torch.where(i == j, (j + 1) % M, j)            # never pair a sample with itself
+    i, j = i.to(z.device), j.to(z.device)
+    dz = ((z[i] - z[j]) ** 2).sum(-1).clamp_min(1e-12).sqrt()   # latent distances
+    dx = ((x[i] - x[j]) ** 2).sum(-1).clamp_min(1e-12).sqrt()   # true-state distances
+    return ((dz - log_scale.exp() * dx) ** 2).mean()
+
+
 def run(
     fname: str = "examples/microbiome_jepa/cfgs/layerB_worldmodel.yaml",
     cfg=None,
@@ -181,6 +204,18 @@ def run(
     ploss = SquareLossSeq()
     jepa = JEPA(encoder, aencoder, predictor, regularizer, ploss).to(device)
 
+    # --- HYBRID metric-preserving auxiliary (config-gated; default OFF => behavior unchanged) ---
+    # metric_coeff>0 adds an isometry term (latent dist -> TRUE gLV state dist) on top of the pure-JEPA
+    # objective. This uses ground-truth state supervision, so it is explicitly a HYBRID ablation, NOT
+    # pure JEPA. exp(metric_scale) is a single learned global scale matching latent<->state units.
+    metric_coeff = float(rcfg.get("metric_coeff", 0.0))
+    metric_pairs = int(rcfg.get("metric_pairs", 4096))
+    metric_scale = torch.nn.Parameter(torch.zeros(1, device=device)) if metric_coeff > 0 else None
+    metric_gen = torch.Generator(device="cpu").manual_seed(int(cfg.meta.seed)) if metric_coeff > 0 else None
+    if metric_coeff > 0:
+        logger.info(f"=== HYBRID metric loss ON: metric_coeff={metric_coeff} pairs={metric_pairs} "
+                    f"(isometry latent->TRUE-state dist; uses true-state supervision => NOT pure JEPA) ===")
+
     log_model_info(
         jepa,
         {
@@ -194,7 +229,8 @@ def run(
 
     steps_per_epoch = max(1, len(loader))
     total_steps = cfg.optim.epochs * steps_per_epoch
-    optimizer = AdamW(jepa.parameters(), lr=cfg.optim.lr,
+    opt_params = list(jepa.parameters()) + ([metric_scale] if metric_scale is not None else [])
+    optimizer = AdamW(opt_params, lr=cfg.optim.lr,
                       weight_decay=cfg.optim.get("weight_decay", 1e-5))
     scheduler = CosineWithWarmup(optimizer, total_steps, warmup_ratio=cfg.optim.get("warmup_ratio", 0.1))
 
@@ -228,6 +264,16 @@ def run(
                     compute_loss=True,
                     return_all_steps=False,
                 )
+                m_loss = None
+                if metric_coeff > 0:
+                    # second (grad-enabled) encode of the SAME obs; batch[2] is the TRUE [B,Tw,S] state.
+                    state_true = batch[2].to(device, non_blocking=True).float()      # [B, Tw, S]
+                    z5 = jepa.encoder(obs)                                            # [B, D, Tw, 1, 1]
+                    Bc, Dc, Tc = z5.shape[0], z5.shape[1], z5.shape[2]
+                    zc = z5[..., 0, 0].permute(0, 2, 1).reshape(Bc * Tc, Dc)          # [B*Tw, D]
+                    xc = state_true.reshape(Bc * Tc, -1)                              # [B*Tw, S]
+                    m_loss = isometry_metric_loss(zc, xc, metric_scale, metric_pairs, metric_gen)
+                    loss = loss + metric_coeff * m_loss
             scaler.scale(loss).backward()
             if grad_clip:
                 scaler.unscale_(optimizer)
@@ -238,6 +284,9 @@ def run(
 
             row = {"total": loss.item(), "pred": pl.item() if torch.is_tensor(pl) else float(pl),
                    "reg": regl.item(), **regldict}
+            if m_loss is not None:
+                row["metric_loss"] = float(m_loss.detach())
+                row["metric_scale"] = float(metric_scale.detach().exp())
             for k, v in row.items():
                 agg[k] = agg.get(k, 0.0) + (v.item() if torch.is_tensor(v) else float(v))
             last_obs = obs  # for the once-per-epoch collapse diagnostic (avoid a per-step extra encode)
