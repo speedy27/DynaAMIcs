@@ -12,12 +12,11 @@
 
 <p align="center">
   Built on <a href="https://github.com/marinabar/eb_jepa">eb-JEPA</a> ·
-  Hack The World(s) / Vivatech 2026 ·
   📄 <a href="paper/main.pdf"><b>read the paper</b></a>
 </p>
 
 <p align="center">
-  <img src="paper/figures/energy_landscape.png" width="82%"
+  <img src="paper/figures/energy_landscape.png" width="55%"
        alt="Energy landscape of the JEPA world model">
   <br>
   <sub><i>Planning = descent on the learned energy landscape. The bistable gLV “Two Rooms” places the
