@@ -1,4 +1,4 @@
-# cluster/ — Utility scripts for the HTW DALIA cluster
+# cluster/ — Utility scripts for the DALIA cluster
 
 Scripts for monitoring jobs, GPU usage, and logs. All read-only — they never submit or cancel anything.
 
