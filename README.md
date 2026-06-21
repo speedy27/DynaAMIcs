@@ -1,12 +1,28 @@
 <h1 align="center">DynAMIcs</h1>
 
 <p align="center">
-  <b>An energy-based JEPA <i>world-model of drug perturbations</i> on Tahoe-100M.</b><br>
-  <code>(control cell, drug) → perturbed cell</code>, predicted in representation space.
+  <b>An Energy-Based JEPA <i>World Model of Living Systems Under Intervention</i>.</b><br>
+  Predict how a living system's latent state changes <i>under an action</i> — never reconstruct.
 </p>
 
 <p align="center">
-  Built on <a href="https://github.com/marinabar/eb_jepa">eb-JEPA</a> · Hack The World(s) / Vivatech · single-cell transcriptomics
+  <code>(control cell, drug) → perturbed cell</code> on <b>Tahoe-100M</b>  ·
+  <code>(community, dose) → next community</code> on the <b>microbiome</b>
+</p>
+
+<p align="center">
+  Built on <a href="https://github.com/marinabar/eb_jepa">eb-JEPA</a> ·
+  Hack The World(s) / Vivatech 2026 ·
+  📄 <a href="paper/main.pdf"><b>read the paper</b></a>
+</p>
+
+<p align="center">
+  <img src="paper/figures/energy_landscape.png" width="82%"
+       alt="Energy landscape of the JEPA world model">
+  <br>
+  <sub><i>Planning = descent on the learned energy landscape. The bistable gLV “Two Rooms” places the
+  healthy / adult-like target behind a <b>non-monotonic barrier</b>: greedy descent stalls in the
+  dysbiotic basin, an oracle plan climbs the barrier then descends into the target. (illustrative)</i></sub>
 </p>
 
 ---
@@ -169,11 +185,34 @@ python -m examples.tahoe.experiments --cache <cache_pert.pt> --fp <drug_fp.pt> \
 
 ## Measured findings (honest)
 
-- **Headline:** the world-model beats **no-effect** (~1.20×) and **mean-shift** (~1.19×).
-- **Motivation:** from-scratch SSL learns cell identity (F1 0.93), not the drug (0.02).
-- **PBMC3k:** 0.92 in-domain (≠ comparable to GeneJEPA's 0.69 *frozen-transfer*; stated explicitly).
-- **Collapse ablation:** SIGReg std 1.14 / acc 0.94 **vs** none std 0.002 / acc 0.43.
-- **Microbiome:** honest *negative* result (temporal collapse persists despite TemporalVarianceLoss).
+**Track A — Tahoe drug perturbations**
+- **Headline:** the world-model beats **no-effect** (~1.20×) and **mean-shift** (~1.19×); scales
+  monotonically (1.07 → 1.14 → 1.16) and generalizes to held-out drugs (seen 1.161 / unseen 1.157).
+- **Motivation:** from-scratch SSL learns cell identity (F1 0.92) but **discards the drug**
+  (F1 0.012, below a random encoder) — a textbook slow-feature collapse.
+- **Mechanism, not drug:** the predicted perturbations organize by **mechanism of action** (UMAP below).
+
+**Track B — Microbiome world model (gLV / DIABIMMUNE)**
+- **IDM collapse-and-recovery (the rubric result):** without the inverse-dynamics term the encoder drops
+  the intervention; IDM recovers it — intervention-decodability R² **0.520 → 0.748** (+0.229, positive
+  in all 3 seeds).
+- **Normalization is the lever:** per-feature z-score breaks the temporal collapse —
+  skill **0.80 → 1.14**, age-R² **0.27 → 0.47**.
+- **MDSINE2 benchmark:** the JEPA world model is the **best curve at every horizon**
+  (CLR-RMSE 0.22 / 0.30 / 0.36 / 0.47 at h = 1/3/5/10), beating a strong gLV-net MLP.
+- **Planning — a diagnosed negative *and* its closure:** a pure-JEPA latent is faithful for one-step
+  prediction yet **not a metric space** (raw-latent MPPI = 0%); a single isometry auxiliary turns
+  planning **0% → 100%** at oracle quality (final 0.80 vs oracle 0.79).
+
+<p align="center">
+  <img src="paper/figures/umap.png" width="80%"
+       alt="UMAP of predicted Tahoe perturbations in latent space">
+  <br>
+  <sub><i>Latent space (UMAP) of the predicted Tahoe perturbations — <b>left</b> colored by drug,
+  <b>right</b> by mechanism of action. Perturbations cluster by <b>mechanism</b> (CDK / DNA-damaging /
+  mTOR / microtubule / HDAC inhibitors), not by drug identity: the basis for mechanism-aware
+  in-silico screening.</i></sub>
+</p>
 
 ---
 
