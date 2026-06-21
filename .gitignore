@@ -242,3 +242,4 @@ examples/microbiome/*.pdf
 *.out
 *.vrb
 *.html
+hackathon_guide/
