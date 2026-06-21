@@ -244,3 +244,5 @@ examples/microbiome/*.pdf
 *.html
 hackathon_guide/
 references/
+*.md
+!README.md
